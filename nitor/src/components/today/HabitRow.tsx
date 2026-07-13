@@ -25,7 +25,7 @@ export function scheduleLabel(schedule: Schedule): string {
     .join(", ");
 }
 
-function FlameIcon() {
+export function FlameIcon() {
   return (
     <svg
       aria-hidden="true"

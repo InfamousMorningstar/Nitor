@@ -15,4 +15,5 @@ export interface HabitRepository {
   logValue(input: LogInput): Promise<Log>;
   upsertHabit(habit: Habit): Promise<Habit>;
   archiveHabit(id: string): Promise<void>;
+  deleteHabit(id: string): Promise<void>;
 }

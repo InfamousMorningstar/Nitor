@@ -52,6 +52,11 @@ export class MockHabitRepository implements HabitRepository {
     const h = this.habits.find((x) => x.id === id);
     if (h) h.archived = true;
   }
+
+  async deleteHabit(id: string): Promise<void> {
+    this.habits = this.habits.filter((h) => h.id !== id);
+    this.logs = this.logs.filter((l) => l.habitId !== id);
+  }
 }
 
 export function createSeededRepository(): HabitRepository {
