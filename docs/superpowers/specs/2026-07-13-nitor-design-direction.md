@@ -61,7 +61,7 @@ blue. Not purple, not acid-green-on-black, not cream.
 ### Light (cool porcelain, NOT cream)
 ```
 --bg:            #EDF1F2   /* cool porcelain / frost */
---bg-elev:       #FFFFFF
+--bg-elev:       #FBFCFC   /* near-white porcelain, not pure #fff */
 --text:          #101720
 --muted:         #5A6B74
 --nitor:         #E8A21F   /* deepened amber for contrast on light */
