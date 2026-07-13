@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { TabBar } from "@/components/nav/TabBar";
+import { AppFrame } from "@/components/app/AppFrame";
 import { HabitForm } from "@/components/habits/HabitForm";
 import { useHabits } from "@/state/useHabits";
 import { useRepository } from "@/state/RepositoryProvider";
@@ -28,7 +28,7 @@ export default function HabitsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md px-4 pb-28 pt-16">
+    <AppFrame>
       <div className="mb-8 flex items-center justify-between">
         <h1 className="font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight">
           Habits
@@ -43,7 +43,7 @@ export default function HabitsPage() {
       </div>
 
       {adding && (
-        <div className="mb-8 rounded-[28px] border [border-color:rgb(var(--hairline)/0.10)] [background:rgb(var(--bg-elev))] p-5">
+        <div className="mb-8 max-w-xl rounded-[28px] border [border-color:rgb(var(--hairline)/0.10)] [background:rgb(var(--bg-elev))] p-5">
           <HabitForm onSubmit={addHabit} />
         </div>
       )}
@@ -54,7 +54,7 @@ export default function HabitsPage() {
         </p>
       )}
 
-      <ul className="space-y-2">
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {habits.map((h) => (
           <li
             key={h.id}
@@ -81,8 +81,6 @@ export default function HabitsPage() {
           </li>
         ))}
       </ul>
-
-      <TabBar />
-    </main>
+    </AppFrame>
   );
 }

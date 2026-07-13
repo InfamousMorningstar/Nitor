@@ -1,5 +1,5 @@
 "use client";
-import { TabBar } from "@/components/nav/TabBar";
+import { AppFrame } from "@/components/app/AppFrame";
 import { HabitCard } from "@/components/today/HabitCard";
 import { useHabits } from "@/state/useHabits";
 import { today } from "@/domain/dates";
@@ -8,7 +8,7 @@ export default function TodayPage() {
   const { habits, logs, loading, log } = useHabits();
 
   return (
-    <main className="mx-auto max-w-md px-4 pb-28 pt-12">
+    <AppFrame>
       <header className="mb-6">
         <p className="font-[family-name:var(--font-geist-mono)] text-xs uppercase tracking-[0.08em] [color:rgb(var(--muted))]">
           {today()}
@@ -21,7 +21,7 @@ export default function TodayPage() {
       {loading ? (
         <p className="[color:rgb(var(--muted))]">Loading…</p>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {habits.map((h, i) => (
             <div
               key={h.id}
@@ -37,8 +37,6 @@ export default function TodayPage() {
           ))}
         </div>
       )}
-
-      <TabBar />
-    </main>
+    </AppFrame>
   );
 }

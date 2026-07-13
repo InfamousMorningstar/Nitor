@@ -1,6 +1,6 @@
 "use client";
 import { use, useEffect, useState } from "react";
-import { TabBar } from "@/components/nav/TabBar";
+import { AppFrame } from "@/components/app/AppFrame";
 import { MonthCalendar } from "@/components/calendar/MonthCalendar";
 import { useRepository } from "@/state/RepositoryProvider";
 import { computeStreak } from "@/domain/streaks";
@@ -40,19 +40,17 @@ export default function HabitDetail({ params }: { params: Promise<{ id: string }
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-md px-4 pb-28 pt-12">
+      <AppFrame>
         <p className={`${eyebrow}`}>Loading…</p>
-        <TabBar />
-      </main>
+      </AppFrame>
     );
   }
 
   if (!habit) {
     return (
-      <main className="mx-auto max-w-md px-4 pb-28 pt-12">
+      <AppFrame>
         <p className="[color:rgb(var(--muted))]">Habit not found.</p>
-        <TabBar />
-      </main>
+      </AppFrame>
     );
   }
 
@@ -62,7 +60,7 @@ export default function HabitDetail({ params }: { params: Promise<{ id: string }
   const aura = auraFor(streak.momentum);
 
   return (
-    <main className="mx-auto max-w-md px-4 pb-28 pt-12">
+    <AppFrame>
       <header className="mb-8 flex items-center gap-4">
         <span
           className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-3xl [background:rgb(var(--muted)/0.10)]"
@@ -82,27 +80,46 @@ export default function HabitDetail({ params }: { params: Promise<{ id: string }
         </div>
       </header>
 
-      <section className="relative overflow-hidden rounded-[28px] border [border-color:rgb(var(--hairline)/0.10)] [background:rgb(var(--bg-elev))] p-5 sm:p-6">
-        {/* Momentum Aura — same signature glow as the habit card, calm framing (no giant flame). */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[inherit] [filter:blur(28px)]"
-          style={{
-            background: `radial-gradient(circle at 85% 0%, rgb(${aura.from}), rgb(${aura.to}) 45%, transparent 72%)`,
-            opacity: aura.opacity,
-          }}
-        />
-        <div className="relative">
-          <p className={eyebrow}>
-            {MONTH_LABELS[m - 1]} {y}
-          </p>
-          <div className="mt-4">
-            <MonthCalendar habit={habit} logs={logs} year={y} monthIndex0={m - 1} />
+      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_20rem]">
+        <section className="relative overflow-hidden rounded-[28px] border [border-color:rgb(var(--hairline)/0.10)] [background:rgb(var(--bg-elev))] p-5 sm:p-6">
+          {/* Momentum Aura — same signature glow as the habit card, calm framing (no giant flame). */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-[inherit] [filter:blur(28px)]"
+            style={{
+              background: `radial-gradient(circle at 85% 0%, rgb(${aura.from}), rgb(${aura.to}) 45%, transparent 72%)`,
+              opacity: aura.opacity,
+            }}
+          />
+          <div className="relative">
+            <p className={eyebrow}>
+              {MONTH_LABELS[m - 1]} {y}
+            </p>
+            <div className="mt-4">
+              <MonthCalendar habit={habit} logs={logs} year={y} monthIndex0={m - 1} />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <TabBar />
-    </main>
+        <aside className="flex flex-col gap-3">
+          <div className="rounded-[24px] border [border-color:rgb(var(--hairline)/0.10)] [background:rgb(var(--bg-elev))] p-5">
+            <p className={eyebrow}>Momentum</p>
+            <p className={`${mono} mt-2 text-3xl font-semibold [color:rgb(var(--nitor))]`}>
+              {streak.momentum}%
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1 rounded-[24px] border [border-color:rgb(var(--hairline)/0.10)] [background:rgb(var(--bg-elev))] p-5">
+              <p className={eyebrow}>Streak</p>
+              <p className={`${mono} mt-2 text-2xl font-semibold`}>{streak.current}</p>
+            </div>
+            <div className="flex-1 rounded-[24px] border [border-color:rgb(var(--hairline)/0.10)] [background:rgb(var(--bg-elev))] p-5">
+              <p className={eyebrow}>Best</p>
+              <p className={`${mono} mt-2 text-2xl font-semibold`}>{streak.longest}</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </AppFrame>
   );
 }
