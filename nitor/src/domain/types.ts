@@ -1,5 +1,5 @@
-export type HabitType = "duration" | "boolean" | "count";
-export type ScheduleKind = "daily" | "weekdays" | "timesPerWeek";
+export type HabitType = "duration" | "boolean" | "count" | "quantified" | "quit";
+export type ScheduleKind = "daily" | "weekdays" | "timesPerWeek" | "everyNDays" | "monthly";
 export type Strictness = "strict" | "balanced" | "flexible";
 
 export interface Schedule {
@@ -8,6 +8,10 @@ export interface Schedule {
   weekdays?: number[];
   /** used when kind === "timesPerWeek" */
   timesPerWeek?: number;
+  /** used when kind === "everyNDays"; scheduled every N days from habit.startDate ?? createdAt */
+  everyNDays?: number;
+  /** 1-31; used when kind === "monthly" */
+  monthlyDay?: number;
 }
 
 export interface Habit {
@@ -24,6 +28,10 @@ export interface Habit {
   graceDaysPerWeek: number;
   archived: boolean;
   createdAt: string; // YYYY-MM-DD
+  /** label for quantified habits, e.g. "pages" */
+  unit?: string;
+  /** YYYY-MM-DD; defaults to createdAt when absent */
+  startDate?: string;
 }
 
 export interface Log {

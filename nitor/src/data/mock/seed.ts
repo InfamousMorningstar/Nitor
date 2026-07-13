@@ -17,6 +17,12 @@ const HABITS: Habit[] = [
   { id: "h_journal", name: "Journal", emoji: "✍️", color: "#F5A623", category: "Mind",
     type: "boolean", targetValue: null, schedule: { kind: "timesPerWeek", timesPerWeek: 4 },
     strictness: "flexible", graceDaysPerWeek: 2, archived: false, createdAt: addDays(today(), -42) },
+  { id: "h_pages", name: "Read pages", emoji: "📚", color: "#9B59F5", category: "Growth",
+    type: "quantified", targetValue: 20, unit: "pages", schedule: { kind: "daily" },
+    strictness: "balanced", graceDaysPerWeek: 1, archived: false, createdAt: addDays(today(), -42) },
+  { id: "h_doomscroll", name: "No doomscrolling", emoji: "📵", color: "#E85D75", category: "Mind",
+    type: "quit", targetValue: null, schedule: { kind: "daily" },
+    strictness: "strict", graceDaysPerWeek: 1, archived: false, createdAt: addDays(today(), -42) },
 ];
 
 // Deterministic pseudo-random so seed is stable across reloads.
@@ -26,8 +32,9 @@ function seeded(n: number): number {
 }
 
 function completionValue(h: Habit, roll: number): number | boolean {
-  if (h.type === "boolean") return roll > 0.25;
-  if (h.type === "count") return roll > 0.2 ? (h.targetValue ?? 8) : Math.floor((h.targetValue ?? 8) * roll);
+  if (h.type === "boolean" || h.type === "quit") return roll > 0.25;
+  if (h.type === "count" || h.type === "quantified")
+    return roll > 0.2 ? (h.targetValue ?? 8) : Math.floor((h.targetValue ?? 8) * roll);
   return roll > 0.2 ? (h.targetValue ?? 20) : Math.floor((h.targetValue ?? 20) * roll);
 }
 
@@ -47,7 +54,7 @@ export function buildSeed(): { habits: Habit[]; logs: Log[] } {
         id: `${h.id}_${date}`,
         habitId: h.id,
         date,
-        value: isGrace ? (h.type === "boolean" ? false : 0) : completionValue(h, roll),
+        value: isGrace ? (h.type === "boolean" || h.type === "quit" ? false : 0) : completionValue(h, roll),
         isGraceDay: isGrace,
         createdAt: `${date}T${String(hour).padStart(2, "0")}:30:00Z`,
       });

@@ -14,6 +14,8 @@ const TYPE_LABELS: Record<HabitType, string> = {
   boolean: "Yes / no",
   count: "Count",
   duration: "Duration",
+  quantified: "Quantified",
+  quit: "Quit",
 };
 
 export function HabitForm({ onSubmit }: { onSubmit: (habit: Habit) => void }) {

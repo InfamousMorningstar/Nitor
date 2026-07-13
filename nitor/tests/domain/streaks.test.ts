@@ -120,3 +120,79 @@ describe("computeStreak", () => {
     expect(s.longest).toBe(4);
   });
 });
+
+describe("isComplete for new habit types", () => {
+  it("quantified compares numeric value to target like count", () => {
+    const h = habit({ type: "quantified", targetValue: 20, unit: "pages" });
+    expect(isComplete(h, log("2026-07-13", 20))).toBe(true);
+    expect(isComplete(h, log("2026-07-13", 25))).toBe(true);
+    expect(isComplete(h, log("2026-07-13", 19))).toBe(false);
+  });
+
+  it("quantified defaults target to 1 when targetValue is null", () => {
+    const h = habit({ type: "quantified", targetValue: null });
+    expect(isComplete(h, log("2026-07-13", 1))).toBe(true);
+    expect(isComplete(h, log("2026-07-13", 0))).toBe(false);
+  });
+
+  it("quit uses truthiness like boolean (true = stayed clean)", () => {
+    const h = habit({ type: "quit", targetValue: null });
+    expect(isComplete(h, log("2026-07-13", true))).toBe(true);
+    expect(isComplete(h, log("2026-07-13", false))).toBe(false);
+  });
+});
+
+describe("isScheduledOn for new schedules", () => {
+  it("everyNDays is scheduled every N days starting from startDate", () => {
+    const h = habit({
+      schedule: { kind: "everyNDays", everyNDays: 3 },
+      createdAt: "2026-07-01",
+      startDate: "2026-07-01",
+    });
+    expect(isScheduledOn(h, "2026-07-01")).toBe(true); // day 0
+    expect(isScheduledOn(h, "2026-07-02")).toBe(false); // day 1
+    expect(isScheduledOn(h, "2026-07-03")).toBe(false); // day 2
+    expect(isScheduledOn(h, "2026-07-04")).toBe(true); // day 3
+    expect(isScheduledOn(h, "2026-07-07")).toBe(true); // day 6
+  });
+
+  it("everyNDays falls back to createdAt when startDate is absent", () => {
+    const h = habit({
+      schedule: { kind: "everyNDays", everyNDays: 2 },
+      createdAt: "2026-07-01",
+    });
+    expect(isScheduledOn(h, "2026-07-01")).toBe(true);
+    expect(isScheduledOn(h, "2026-07-02")).toBe(false);
+    expect(isScheduledOn(h, "2026-07-03")).toBe(true);
+  });
+
+  it("everyNDays is not scheduled before startDate", () => {
+    const h = habit({
+      schedule: { kind: "everyNDays", everyNDays: 3 },
+      createdAt: "2026-07-01",
+      startDate: "2026-07-01",
+    });
+    expect(isScheduledOn(h, "2026-06-28")).toBe(false);
+  });
+
+  it("monthly is scheduled only on the monthlyDay", () => {
+    const h = habit({ schedule: { kind: "monthly", monthlyDay: 15 } });
+    expect(isScheduledOn(h, "2026-07-15")).toBe(true);
+    expect(isScheduledOn(h, "2026-07-14")).toBe(false);
+    expect(isScheduledOn(h, "2026-08-15")).toBe(true);
+  });
+});
+
+describe("computeStreak for quantified daily habit", () => {
+  it("consecutive complete days increment the current streak", () => {
+    const h = habit({ type: "quantified", targetValue: 20, unit: "pages", createdAt: "2026-07-01" });
+    const logs = [
+      log("2026-07-11", 20),
+      log("2026-07-12", 22),
+      log("2026-07-13", 20),
+    ];
+    const s = computeStreak(h, logs, "2026-07-13");
+    expect(s.current).toBe(3);
+    expect(s.longest).toBeGreaterThanOrEqual(3);
+  });
+});

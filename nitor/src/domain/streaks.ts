@@ -5,13 +5,26 @@ export function isScheduledOn(habit: Habit, date: string): boolean {
   const s = habit.schedule;
   if (s.kind === "daily") return true;
   if (s.kind === "weekdays") return (s.weekdays ?? []).includes(weekdayOf(date));
+  if (s.kind === "everyNDays") {
+    const n = s.everyNDays;
+    if (!n || n < 1) return false;
+    const start = habit.startDate ?? habit.createdAt;
+    const delta = diffDays(date, start);
+    return delta >= 0 && delta % n === 0;
+  }
+  if (s.kind === "monthly") {
+    const day = s.monthlyDay;
+    if (!day || day < 1 || day > 31) return false;
+    const dayOfMonth = Number(date.split("-")[2]);
+    return dayOfMonth === day;
+  }
   // timesPerWeek: treat every day as an opportunity (flexible)
   return true;
 }
 
 export function isComplete(habit: Habit, log: Log | undefined): boolean {
   if (!log) return false;
-  if (habit.type === "boolean") return Boolean(log.value);
+  if (habit.type === "boolean" || habit.type === "quit") return Boolean(log.value);
   const done = typeof log.value === "number" ? log.value : log.value ? 1 : 0;
   return done >= (habit.targetValue ?? 1);
 }
