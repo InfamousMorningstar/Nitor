@@ -1,2 +1,6 @@
 .remember/
 CLAUDE.md
+
+# local visual-checkpoint artifacts
+.playwright-mcp/
+nitor-*.png
