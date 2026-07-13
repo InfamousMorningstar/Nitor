@@ -1,5 +1,6 @@
 import type { Habit, Log, Insight } from "@/domain/types";
-import { isComplete } from "@/domain/streaks";
+import { isComplete, computeStreak } from "@/domain/streaks";
+import { today } from "@/domain/dates";
 
 export function pearson(xs: number[], ys: number[]): number {
   const n = Math.min(xs.length, ys.length);
@@ -65,6 +66,7 @@ export function computeInsights(habits: Habit[], logs: Log[]): Insight[] {
     byHabit.set(l.habitId, arr);
   }
   const ranked = [...byHabit.entries()].sort((a, b) => b[1].length - a[1].length);
+  let topTwoSentence = "";
   if (ranked.length >= 2) {
     const [aId] = ranked[0];
     const [bId] = ranked[1];
@@ -90,8 +92,35 @@ export function computeInsights(habits: Habit[], logs: Log[]): Insight[] {
             ? `On days you do ${a.name}, you're noticeably more likely to do ${b.name}. Stacking them could compound.`
             : `${a.name} and ${b.name} don't move together much yet — they're independent habits for now.`,
       });
+      topTwoSentence =
+        r >= 0.2
+          ? ` ${a.name} and ${b.name} tend to rise together.`
+          : ` ${a.name} and ${b.name} are moving independently for now.`;
     }
   }
+
+  // Deterministic weekly story (Phase 1 mock; Phase 2 replaces this with a real Claude narrative).
+  let topHabit: Habit | undefined;
+  let topMomentum = 0;
+  for (const h of habits) {
+    const hLogs = logs.filter((l) => l.habitId === h.id);
+    const momentum = computeStreak(h, hLogs, today()).momentum;
+    if (!topHabit || momentum > topMomentum) {
+      topHabit = h;
+      topMomentum = momentum;
+    }
+  }
+  const topName = topHabit?.name ?? "your habits";
+  let narrative = `This week, ${topName} is your brightest habit at ${topMomentum}% momentum.${hour >= 0 ? ` You show up most around ${hour}:00 — protect that window.` : ""}`;
+  narrative += topTwoSentence;
+
+  insights.unshift({
+    id: "story-weekly",
+    kind: "story",
+    stat: topMomentum,
+    label: "This week",
+    narrative,
+  });
 
   return insights;
 }

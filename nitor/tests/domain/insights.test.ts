@@ -43,6 +43,23 @@ describe("computeInsights", () => {
     expect(insights.some((i) => i.kind === "best_time")).toBe(true);
   });
 
+  it("leads with a deterministic weekly story card when data is rich", () => {
+    const logs: Log[] = [];
+    for (let i = 0; i < 20; i++) {
+      const day = String(i + 1).padStart(2, "0");
+      logs.push({
+        id: String(i), habitId: "h1", date: `2026-06-${day}`,
+        value: i % 2 === 0, isGraceDay: false,
+        createdAt: `2026-06-${day}T07:00:00Z`,
+      });
+    }
+    const insights = computeInsights([habit], logs);
+    expect(insights[0].kind).toBe("story");
+    expect(typeof insights[0].narrative).toBe("string");
+    expect(insights[0].narrative.length).toBeGreaterThan(0);
+    expect(insights.some((i) => i.kind === "best_time")).toBe(true);
+  });
+
   const hA: Habit = {
     id: "hA", name: "Meditate", emoji: "🧘", color: "#7C5CFF", category: "Mind",
     type: "boolean", targetValue: null, schedule: { kind: "daily" },
