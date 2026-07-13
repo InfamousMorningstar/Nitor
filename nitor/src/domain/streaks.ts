@@ -24,7 +24,11 @@ function logByDate(logs: Log[]): Map<string, Log> {
 
 export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak {
   const byDate = logByDate(logs);
-  const end = asOf ?? (logs.length ? logs[logs.length - 1].date : habit.createdAt);
+  const end =
+    asOf ??
+    (logs.length
+      ? logs.reduce((latest, l) => (diffDays(l.date, latest) > 0 ? l.date : latest), logs[0].date)
+      : habit.createdAt);
 
   // Current streak: walk backward over scheduled days.
   let current = 0;
@@ -53,16 +57,18 @@ export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak 
     }
   }
 
-  // Momentum: forgiving 14-scheduled-day fill rate.
+  // Momentum: forgiving fill rate over the last 14 SCHEDULED days (not calendar days).
   let scheduled = 0;
   let good = 0;
-  for (let i = 0; i < 14; i++) {
-    const d = addDays(end, -i);
-    if (diffDays(d, habit.createdAt) < 0) break;
-    if (!isScheduledOn(habit, d)) continue;
-    scheduled++;
-    const l = byDate.get(d);
-    if (isComplete(habit, l) || l?.isGraceDay) good++;
+  let momentumCursor = end;
+  for (let guard = 0; guard < 3650 && scheduled < 14; guard++) {
+    if (diffDays(momentumCursor, habit.createdAt) < 0) break;
+    if (isScheduledOn(habit, momentumCursor)) {
+      scheduled++;
+      const l = byDate.get(momentumCursor);
+      if (isComplete(habit, l) || l?.isGraceDay) good++;
+    }
+    momentumCursor = addDays(momentumCursor, -1);
   }
   const momentum = scheduled === 0 ? 0 : Math.round((100 * good) / scheduled);
 

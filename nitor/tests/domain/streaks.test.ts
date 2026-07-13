@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isScheduledOn, isComplete, computeStreak } from "@/domain/streaks";
+import { addDays as addDaysLocal, diffDays as diffDaysLocal } from "@/domain/dates";
 import type { Habit, Log } from "@/domain/types";
 
 function habit(over: Partial<Habit> = {}): Habit {
@@ -72,5 +73,50 @@ describe("computeStreak", () => {
     expect(s.current).toBe(2);
     expect(s.momentum).toBeGreaterThan(0);
     expect(s.momentum).toBeLessThan(100);
+  });
+
+  it("momentum samples scheduled days, not calendar days", () => {
+    const h = habit({
+      schedule: { kind: "weekdays", weekdays: [1, 3, 5] },
+      createdAt: "2026-05-01",
+    });
+    const scheduledDates: string[] = [];
+    for (let d = "2026-05-01"; diffDaysLocal(d, "2026-07-13") <= 0; d = addDaysLocal(d, 1)) {
+      if (isScheduledOn(h, d)) scheduledDates.push(d);
+    }
+    const logs = scheduledDates.map((d) => log(d, true));
+    const s1 = computeStreak(h, logs, "2026-07-13");
+    expect(s1.momentum).toBe(100);
+
+    const logsMinusLast = logs.filter((l) => l.date !== "2026-07-13");
+    const s2 = computeStreak(h, logsMinusLast, "2026-07-13");
+    expect(s2.momentum).toBe(93);
+  });
+
+  it("asOf-omitted uses max date with unsorted logs", () => {
+    const h = habit();
+    const logs = [
+      log("2026-07-11", true),
+      log("2026-07-13", true),
+      log("2026-07-12", true),
+    ];
+    const s = computeStreak(h, logs);
+    expect(s.current).toBe(3);
+  });
+
+  it("longest diverges from current", () => {
+    const h = habit({ createdAt: "2026-07-01" });
+    const logs = [
+      log("2026-07-01", true),
+      log("2026-07-02", true),
+      log("2026-07-03", true),
+      log("2026-07-04", true),
+      // 07-05 missed
+      log("2026-07-06", true),
+      log("2026-07-07", true),
+    ];
+    const s = computeStreak(h, logs, "2026-07-07");
+    expect(s.current).toBe(2);
+    expect(s.longest).toBe(4);
   });
 });
