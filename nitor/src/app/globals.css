@@ -1,26 +1,99 @@
 @import "tailwindcss";
 
+/*
+ * Nitor design tokens.
+ * Colors are stored as space-separated RGB triplets (not hex) so they can be
+ * composed with alpha at use-site, e.g. rgb(var(--nitor) / 0.4).
+ *
+ * Light = cool porcelain (not cream). Dark = deep cool ink (not pure black).
+ * See docs/superpowers/specs/2026-07-13-nitor-design-direction.md for source hex values.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: 237 241 242; /* #EDF1F2 cool porcelain / frost */
+  --bg-elev: 255 255 255; /* #FFFFFF */
+  --text: 16 23 32; /* #101720 */
+  --muted: 90 107 116; /* #5A6B74 */
+  --nitor: 232 162 31; /* #E8A21F deepened amber for contrast on light */
+  --nitor-2: 240 120 90; /* #F0785A */
+  --calm: 31 167 140; /* #1FA78C */
+  --calm-2: 30 126 156; /* #1E7E9C */
+  --hairline: 16 23 32; /* used as rgb(var(--hairline) / 0.10) */
+
+  --glass-blur: 18px;
+  --glass-saturate: 180%;
+  --glass-tint: 255 255 255;
+  --glass-tint-opacity: 0.55;
+  --glass-specular-opacity: 0.35;
+  --glass-displace: 40; /* px scale for Tier 1 refraction */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="dark"] {
+  --bg: 11 17 22; /* #0B1116 deep cool ink, not pure black */
+  --bg-elev: 18 28 36; /* #121C24 solid elevated card (non-glass) */
+  --text: 236 242 240; /* #ECF2F0 warm-cool off-white */
+  --muted: 124 138 148; /* #7C8A94 desaturated slate */
+  --nitor: 255 194 75; /* #FFC24B SIGNATURE warm shine (amber-gold) */
+  --nitor-2: 255 142 107; /* #FF8E6B gradient partner (warm coral) */
+  --calm: 70 208 180; /* #46D0B4 cool teal (resting / secondary) */
+  --calm-2: 46 143 176; /* #2E8FB0 deep cyan (aura cool end) */
+  --hairline: 255 255 255; /* used as rgb(var(--hairline) / 0.10) */
+
+  --glass-tint: 30 30 40;
+  --glass-tint-opacity: 0.45;
+  --glass-specular-opacity: 0.22;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html,
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--text));
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    var(--font-geist-sans),
+    system-ui,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Aurora horizon: warm amber rising from the bottom (dawn / shine) meeting a
+ * cool teal wash from the top. Very low saturation so it reads as lit air,
+ * not a rainbow. Slow ~30s drift; frozen under prefers-reduced-motion.
+ * Replaces the plan's generic purple/blue/green radial-blob background.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(60% 55% at 50% 110%, rgb(var(--nitor) / 0.22), transparent 70%),
+    radial-gradient(65% 50% at 50% -10%, rgb(var(--calm-2) / 0.18), transparent 70%);
+  filter: blur(60px) saturate(85%);
+  animation: nitor-aurora-drift 30s ease-in-out infinite alternate;
+}
+
+@keyframes nitor-aurora-drift {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, 1.5%, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(-1%, 2%, 0) scale(1.02);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  body::before {
+    animation: none;
+  }
 }
