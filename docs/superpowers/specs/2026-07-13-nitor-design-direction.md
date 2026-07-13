@@ -108,6 +108,29 @@ caption-mono 11–13px uppercase with +0.08em tracking.
 
 ---
 
+## Layout: DESKTOP-FIRST (mobile app comes later)
+
+Nitor is a **desktop-first website**. Design every screen for a desktop canvas (~1280–1440px)
+first; keep it responsive down to mobile, but desktop is primary. A stranded narrow phone column
+on desktop is a failure.
+
+- **Navigation:** a fixed **glass left sidebar** (~240–260px) with the Nitor wordmark at top and the
+  four destinations (Today / Insights / Habits / Settings) as a vertical list — icon + label, amber
+  `--nitor` active state, mono labels. Below ~768px it collapses to a bottom/top bar (the mobile
+  fallback). This replaces the bottom floating tab bar as the primary nav.
+- **Content shell:** main content sits to the right of the sidebar, centered in a generous max width
+  (~`max-w-6xl`, ~1120–1200px) with comfortable horizontal padding; page header (display title +
+  mono eyebrow) spans the top.
+- **Grids, not a single column:**
+  - **Today:** habit cards in a responsive grid — 1 col (mobile) → 2 (md) → 3 (xl). The aura cards
+    shine as a grid.
+  - **Insights (hero):** a dashboard grid — the weekly Story card spans full width at top, then
+    correlation/best-time cards in a 2–3 col grid below.
+  - **Habits:** a grid or roomy two-column list of habit rows; the add-form opens in a panel/modal.
+  - **Habit detail:** two-column on desktop — calendar on one side, stats/insights on the other —
+    collapsing to stacked on mobile.
+- **Density:** desktop may be modestly denser than mobile, but keep the generous, calm rhythm.
+
 ## Form, space, motion
 
 - **Shape:** generous Apple radii — cards/pills ~24–32px, inputs ~16–20px. Hairline 1px borders +
