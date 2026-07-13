@@ -4,6 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/state/theme";
+import { RepositoryProvider } from "@/state/RepositoryProvider";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -26,9 +27,10 @@ export default function RootLayout({
         className={`${GeistSans.variable} ${GeistMono.variable} ${bricolage.variable} min-h-full flex flex-col`}
       >
         <ThemeProvider>
-          {/* RepositoryProvider (Task 8) and GlassFilterDefs (Task 9) will wrap
-              {children} here once those tasks land. */}
-          {children}
+          <RepositoryProvider>
+            {/* GlassFilterDefs (Task 9) will wrap {children} here once that task lands. */}
+            {children}
+          </RepositoryProvider>
         </ThemeProvider>
       </body>
     </html>
