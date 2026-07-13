@@ -5,6 +5,7 @@ import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/state/theme";
 import { RepositoryProvider } from "@/state/RepositoryProvider";
+import { GlassFilterDefs } from "@/components/glass/GlassFilterDefs";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -28,7 +29,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <RepositoryProvider>
-            {/* GlassFilterDefs (Task 9) will wrap {children} here once that task lands. */}
+            <GlassFilterDefs />
             {children}
           </RepositoryProvider>
         </ThemeProvider>
