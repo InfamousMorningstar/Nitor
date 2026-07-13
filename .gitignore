@@ -4,3 +4,7 @@ CLAUDE.md
 # local visual-checkpoint artifacts
 .playwright-mcp/
 nitor-*.png
+
+# internal planning + sdd scratch (kept local, not part of the runnable site)
+docs/
+.superpowers/
