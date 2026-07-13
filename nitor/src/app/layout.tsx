@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
-import { Bricolage_Grotesque } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/state/theme";
 import { RepositoryProvider } from "@/state/RepositoryProvider";
 import { GlassFilterDefs } from "@/components/glass/GlassFilterDefs";
 
-const bricolage = Bricolage_Grotesque({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <body
-        className={`${GeistSans.variable} ${GeistMono.variable} ${bricolage.variable} min-h-full flex flex-col`}
+        className={`${GeistSans.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} min-h-full flex flex-col`}
       >
         <ThemeProvider>
           <RepositoryProvider>

@@ -1,0 +1,110 @@
+/*
+ * Glitch primitive — a single, brief RGB channel-split + slice offset.
+ * Self-contained: no globals.css dependency besides the CSS custom
+ * properties already defined at :root (falls back to plain values if
+ * unavailable).
+ */
+
+.wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.wrap::before,
+.wrap::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.wrap::before {
+  color: #4fd8ff; /* accent-cyan slice */
+}
+
+.wrap::after {
+  color: #ff3fb0; /* accent-magenta slice */
+}
+
+.wrap:hover::before,
+.wrap.play::before {
+  animation: nitor-glitch-before 280ms var(--ease, cubic-bezier(0.22, 1, 0.36, 1)) 1;
+}
+
+.wrap:hover::after,
+.wrap.play::after {
+  animation: nitor-glitch-after 280ms var(--ease, cubic-bezier(0.22, 1, 0.36, 1)) 1;
+}
+
+@keyframes nitor-glitch-before {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+  20% {
+    opacity: 0.8;
+    transform: translate(-2px, 0);
+    clip-path: inset(10% 0 55% 0);
+  }
+  45% {
+    opacity: 0.55;
+    transform: translate(2px, 0);
+    clip-path: inset(55% 0 10% 0);
+  }
+  70% {
+    opacity: 0.3;
+    transform: translate(-1px, 0);
+    clip-path: inset(25% 0 40% 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes nitor-glitch-after {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+  20% {
+    opacity: 0.8;
+    transform: translate(2px, 0);
+    clip-path: inset(55% 0 10% 0);
+  }
+  45% {
+    opacity: 0.55;
+    transform: translate(-2px, 0);
+    clip-path: inset(10% 0 55% 0);
+  }
+  70% {
+    opacity: 0.3;
+    transform: translate(1px, 0);
+    clip-path: inset(40% 0 25% 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap::before,
+  .wrap::after {
+    content: none;
+    display: none;
+  }
+
+  .wrap:hover::before,
+  .wrap:hover::after,
+  .wrap.play::before,
+  .wrap.play::after {
+    animation: none !important;
+  }
+}
