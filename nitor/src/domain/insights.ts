@@ -4,7 +4,7 @@ import { isComplete } from "@/domain/streaks";
 export function pearson(xs: number[], ys: number[]): number {
   const n = Math.min(xs.length, ys.length);
   if (n === 0) return 0;
-  const mean = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
+  const mean = (a: number[]) => a.slice(0, n).reduce((s, v) => s + v, 0) / n;
   const mx = mean(xs), my = mean(ys);
   let num = 0, dx = 0, dy = 0;
   for (let i = 0; i < n; i++) {
@@ -71,11 +71,10 @@ export function computeInsights(habits: Habit[], logs: Log[]): Insight[] {
     const a = habits.find((h) => h.id === aId);
     const b = habits.find((h) => h.id === bId);
     if (a && b) {
-      const dates = new Set<string>();
-      for (const l of logs) dates.add(l.date);
       const xs: number[] = [], ys: number[] = [];
       const aByDate = new Map(byHabit.get(aId)!.map((l) => [l.date, l]));
       const bByDate = new Map(byHabit.get(bId)!.map((l) => [l.date, l]));
+      const dates = new Set<string>([...aByDate.keys(), ...bByDate.keys()]);
       for (const d of dates) {
         xs.push(isComplete(a, aByDate.get(d)) ? 1 : 0);
         ys.push(isComplete(b, bByDate.get(d)) ? 1 : 0);

@@ -42,4 +42,68 @@ describe("computeInsights", () => {
     expect(insights.length).toBeGreaterThanOrEqual(1);
     expect(insights.some((i) => i.kind === "best_time")).toBe(true);
   });
+
+  const hA: Habit = {
+    id: "hA", name: "Meditate", emoji: "🧘", color: "#7C5CFF", category: "Mind",
+    type: "boolean", targetValue: null, schedule: { kind: "daily" },
+    strictness: "balanced", graceDaysPerWeek: 1, archived: false, createdAt: "2026-06-01",
+  };
+  const hB: Habit = {
+    id: "hB", name: "Journal", emoji: "📓", color: "#22C55E", category: "Mind",
+    type: "boolean", targetValue: null, schedule: { kind: "daily" },
+    strictness: "balanced", graceDaysPerWeek: 1, archived: false, createdAt: "2026-06-01",
+  };
+
+  it("finds a perfect positive correlation for two identically-logged habits", () => {
+    const logs: Log[] = [];
+    for (let i = 0; i < 12; i++) {
+      const day = String(i + 1).padStart(2, "0");
+      const value = i < 8;
+      logs.push({
+        id: `a${i}`, habitId: "hA", date: `2026-06-${day}`,
+        value, isGraceDay: false, createdAt: `2026-06-${day}T07:00:00Z`,
+      });
+      logs.push({
+        id: `b${i}`, habitId: "hB", date: `2026-06-${day}`,
+        value, isGraceDay: false, createdAt: `2026-06-${day}T07:00:00Z`,
+      });
+    }
+    const insights = computeInsights([hA, hB], logs);
+    const corr = insights.find((i) => i.kind === "correlation");
+    expect(corr).toBeDefined();
+    expect(corr!.stat).toBe(1);
+    expect(corr!.narrative).toContain("more likely");
+  });
+
+  it("does not let a third habit's unrelated dates bias the hA/hB correlation", () => {
+    const logs: Log[] = [];
+    for (let i = 0; i < 12; i++) {
+      const day = String(i + 1).padStart(2, "0");
+      const value = i < 8;
+      logs.push({
+        id: `a${i}`, habitId: "hA", date: `2026-06-${day}`,
+        value, isGraceDay: false, createdAt: `2026-06-${day}T07:00:00Z`,
+      });
+      logs.push({
+        id: `b${i}`, habitId: "hB", date: `2026-06-${day}`,
+        value, isGraceDay: false, createdAt: `2026-06-${day}T07:00:00Z`,
+      });
+    }
+    const hC: Habit = {
+      id: "hC", name: "Stretch", emoji: "🤸", color: "#F59E0B", category: "Body",
+      type: "boolean", targetValue: null, schedule: { kind: "daily" },
+      strictness: "balanced", graceDaysPerWeek: 1, archived: false, createdAt: "2026-07-01",
+    };
+    for (let i = 0; i < 6; i++) {
+      const day = String(i + 1).padStart(2, "0");
+      logs.push({
+        id: `c${i}`, habitId: "hC", date: `2026-07-${day}`,
+        value: true, isGraceDay: false, createdAt: `2026-07-${day}T07:00:00Z`,
+      });
+    }
+    const insights = computeInsights([hA, hB, hC], logs);
+    const corr = insights.find((i) => i.kind === "correlation");
+    expect(corr).toBeDefined();
+    expect(corr!.stat).toBe(1);
+  });
 });
