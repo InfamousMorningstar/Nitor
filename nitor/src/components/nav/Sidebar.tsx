@@ -1,47 +1,58 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Glass } from "@/components/glass/Glass";
+import { Wordmark } from "@/components/brand/Wordmark";
+import { Glitch } from "@/components/brand/Glitch";
 import { NAV_ITEMS } from "./navItems";
 
 /**
- * Desktop-first primary nav — a fixed glass left sidebar, md+ only. Below
- * the md breakpoint the floating TabBar (see TabBar.tsx) takes over.
+ * Desktop-first primary nav — a fixed flat left rail, md+ only. Below the
+ * md breakpoint the TabBar (see TabBar.tsx) takes over. Flat matte surface,
+ * no glass, one accent for the active state.
  */
 export function Sidebar() {
-  const path = usePathname();
+  const pathname = usePathname();
   return (
-    <div className="fixed left-0 top-0 z-40 hidden h-screen w-60 p-4 md:flex">
-      <Glass as="nav" className="flex h-full w-full flex-col px-4 py-6">
-        <Link
-          href="/today"
-          className="mb-8 block font-[family-name:var(--font-display)] text-[22px] font-semibold tracking-tight"
-        >
-          Nitor
+    <div className="fixed left-0 top-0 z-40 hidden h-screen w-60 flex-col border-r [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))] md:flex">
+      <div className="px-6 py-6">
+        <Link href="/today" aria-label="Nitor home" className="inline-block [color:rgb(var(--text))]">
+          <Wordmark size="text-xl" />
         </Link>
-        <ul className="flex flex-1 flex-col gap-1">
-          {NAV_ITEMS.map(({ href, label, Icon }) => {
-            const active = path.startsWith(href);
-            return (
-              <li key={href}>
-                <Link
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={
-                    "flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors " +
-                    (active
-                      ? "[color:rgb(var(--nitor))] [background:rgb(var(--nitor)/0.12)]"
-                      : "[color:rgb(var(--muted))] hover:[color:rgb(var(--text))]")
-                  }
-                >
-                  <Icon />
-                  <span className="text-sm font-medium">{label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </Glass>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-0.5 px-2">
+        {NAV_ITEMS.map(({ href, label, Icon }) => {
+          const active = pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={
+                "flex items-center gap-3 border-l-2 px-4 py-2.5 transition-colors duration-[var(--dur-micro)] [transition-timing-function:var(--ease)] " +
+                (active
+                  ? "border-l-[rgb(var(--accent))] [color:rgb(var(--accent))]"
+                  : "border-l-transparent [color:rgb(var(--text-dim))] hover:[color:rgb(var(--accent))]")
+              }
+            >
+              <Icon />
+              <span className="text-[14px] font-[family-name:var(--font-geist-sans)]">
+                <Glitch>{label}</Glitch>
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto flex items-center gap-3 border-t px-6 py-5 [border-color:rgb(var(--hairline)/0.08)]">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-medium [background:rgb(var(--surface-2))] [color:rgb(var(--text-dim))]"
+          aria-hidden="true"
+        >
+          Y
+        </span>
+        <span className="truncate text-sm [color:rgb(var(--text-dim))]">You</span>
+      </div>
     </div>
   );
 }

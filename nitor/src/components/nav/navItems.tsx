@@ -24,6 +24,17 @@ export function IconToday(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconStats(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="2.5" y1="20.5" x2="21.5" y2="20.5" />
+      <line x1="5.5" y1="20" x2="5.5" y2="12" />
+      <line x1="12" y1="20" x2="12" y2="5.5" />
+      <line x1="18.5" y1="20" x2="18.5" y2="14.5" />
+    </svg>
+  );
+}
+
 export function IconInsights(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -42,6 +53,18 @@ export function IconHabits(props: SVGProps<SVGSVGElement>) {
       <line x1="9" y1="12" x2="20" y2="12" />
       <circle cx="4.5" cy="18" r="1.15" fill="currentColor" stroke="none" />
       <line x1="9" y1="18" x2="20" y2="18" />
+    </svg>
+  );
+}
+
+export function IconPet(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="15" r="4.4" />
+      <circle cx="5.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="18.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -67,7 +90,9 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/today", label: "Today", Icon: IconToday },
+  { href: "/stats", label: "Stats", Icon: IconStats },
   { href: "/insights", label: "Insights", Icon: IconInsights },
   { href: "/habits", label: "Habits", Icon: IconHabits },
+  { href: "/pet", label: "Pet", Icon: IconPet },
   { href: "/settings", label: "Settings", Icon: IconSettings },
 ];
