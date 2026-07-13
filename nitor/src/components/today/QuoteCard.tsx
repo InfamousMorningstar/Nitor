@@ -24,7 +24,7 @@ export function QuoteCard() {
       >
         ×
       </button>
-      <p className="max-w-[560px] pr-8 font-[family-name:var(--font-display)] text-lg italic leading-relaxed [color:rgb(var(--text))] sm:text-xl">
+      <p className="max-w-[560px] pr-8 text-xl italic leading-relaxed [font-family:'Times_New_Roman',Times,serif] [color:rgb(var(--text))] sm:text-2xl">
         &ldquo;{quote.text}&rdquo;
       </p>
       <p className="mt-3 font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.06em] [color:rgb(var(--text-mute))]">
