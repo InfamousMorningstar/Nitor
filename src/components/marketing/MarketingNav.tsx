@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/Wordmark";
+import { LiquidThemeToggle } from "@/components/ui/LiquidThemeToggle";
 
 /**
  * Top nav for the logged-out marketing page. Flat, transparent-over-bg,
  * no glass. No Glitch here — the app's Glitch budget (see DESIGN.md) is
  * already spent on Sidebar nav-hover / loader / 404; this page's slot is
- * the footer Я.
+ * the footer Я. Deliberately quiet: wordmark + the light/dark switch only.
+ * Both auth actions (Start free / Log in) live together in the hero, so the
+ * top bar stays editorial rather than competing for the eye.
  */
 export function MarketingNav() {
   return (
@@ -19,20 +22,7 @@ export function MarketingNav() {
           <Wordmark size="text-xl" />
         </Link>
 
-        <nav className="flex items-center gap-6">
-          <Link
-            href="/login"
-            className="text-sm [color:rgb(var(--text-dim))] transition-colors duration-[var(--dur-micro)] [transition-timing-function:var(--ease)] hover:[color:rgb(var(--text))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-full px-4 py-2 text-sm font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.98] [background:rgb(var(--accent))] [color:rgb(var(--bg))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-          >
-            Start free
-          </Link>
-        </nav>
+        <LiquidThemeToggle />
       </div>
     </header>
   );

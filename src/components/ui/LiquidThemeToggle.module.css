@@ -8,14 +8,33 @@
  * the whole (em-based) switch down to a footer-appropriate size.
  */
 .wrap {
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
   border-radius: 999px;
   line-height: 0;
 }
 .wrap:focus-within {
   outline: 2px solid rgb(var(--accent));
   outline-offset: 2px;
+}
+
+/* Sun / moon flanking the switch. Dim by default; the side matching the
+ * current theme brightens to the accent. Sit outside the filtered input so
+ * the metaball blur never touches them. */
+.icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: rgb(var(--text-dim));
+  opacity: 0.5;
+  transition:
+    color var(--dur-micro) var(--ease),
+    opacity var(--dur-micro) var(--ease);
+}
+.iconOn {
+  color: rgb(var(--accent));
+  opacity: 1;
 }
 
 .toggle {

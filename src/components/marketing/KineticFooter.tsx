@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Glitch } from "@/components/brand/Glitch";
-import { LiquidThemeToggle } from "@/components/ui/LiquidThemeToggle";
 
 const COLUMNS: { title: string; links: string[] }[] = [
   { title: "Product", links: ["Features", "Pricing", "Changelog", "Roadmap"] },
@@ -222,7 +221,6 @@ export function KineticFooter() {
           </span>
         </div>
         <FooterAttribution />
-        <LiquidThemeToggle />
       </div>
     </footer>
   );
