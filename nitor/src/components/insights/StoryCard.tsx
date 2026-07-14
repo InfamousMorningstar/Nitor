@@ -1,22 +1,20 @@
 import type { Insight } from "@/domain/types";
-import { Glass } from "@/components/glass/Glass";
 
 const eyebrow =
-  "font-[family-name:var(--font-geist-mono)] text-xs uppercase tracking-[0.08em] [color:rgb(var(--nitor))]";
+  "font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]";
 
 /**
- * The weekly AI-written "story" — the product's HERO moment. A prominent
- * glass card spanning the full width of the Insights dashboard, meant to
- * read as the centerpiece: a small mono eyebrow, then the narrative set
- * large in the display face.
+ * The weekly story — the page's lede. A large flat hairline card, narrative
+ * set big in the display face so it reads first, like a newspaper headline.
+ * Matte only: 1px hairline border + a single surface step, no glass.
  */
 export function StoryCard({ insight }: { insight: Insight }) {
   return (
-    <Glass className="p-7 md:p-10">
+    <div className="rounded-2xl border p-7 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))] md:p-10">
       <p className={eyebrow}>This week</p>
-      <p className="mt-4 max-w-3xl font-[family-name:var(--font-display)] text-2xl font-medium leading-snug tracking-tight md:text-[32px] md:leading-[1.2]">
+      <p className="mt-4 max-w-3xl font-[family-name:var(--font-display)] text-2xl font-medium leading-snug tracking-tight [color:rgb(var(--text))] md:text-[32px] md:leading-[1.2]">
         {insight.narrative}
       </p>
-    </Glass>
+    </div>
   );
 }
