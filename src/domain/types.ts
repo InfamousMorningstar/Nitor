@@ -32,6 +32,8 @@ export interface Habit {
   unit?: string;
   /** YYYY-MM-DD; defaults to createdAt when absent */
   startDate?: string;
+  /** manual sort position; lower = higher in the list */
+  order?: number;
 }
 
 export interface Log {
