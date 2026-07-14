@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useTheme } from "@/state/theme";
 import { Glitch } from "@/components/brand/Glitch";
+import { LiquidThemeToggle } from "@/components/ui/LiquidThemeToggle";
 
 const COLUMNS: { title: string; links: string[] }[] = [
   { title: "Product", links: ["Features", "Pricing", "Changelog", "Roadmap"] },
@@ -114,21 +114,6 @@ function FooterAttribution() {
   );
 }
 
-function FooterThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const next = theme === "dark" ? "light" : "dark";
-  return (
-    <button
-      type="button"
-      onClick={() => setTheme(next)}
-      aria-label={`Switch to ${next} theme`}
-      className="rounded-full border px-3 py-1.5 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] transition-colors duration-[var(--dur-micro)] [border-color:rgb(var(--hairline)/0.16)] [color:rgb(var(--text-dim))] hover:[border-color:rgb(var(--accent)/0.5)] hover:[color:rgb(var(--accent))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-    >
-      {theme === "dark" ? "Dark" : "Light"}
-    </button>
-  );
-}
-
 /**
  * The kinetic NITOЯ footer — the second signature moment (see DESIGN.md /
  * task brief). The giant wordmark band slides up into view once, then
@@ -237,7 +222,7 @@ export function KineticFooter() {
           </span>
         </div>
         <FooterAttribution />
-        <FooterThemeToggle />
+        <LiquidThemeToggle />
       </div>
     </footer>
   );
