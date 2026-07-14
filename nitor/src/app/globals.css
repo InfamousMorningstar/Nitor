@@ -76,3 +76,12 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* User-level override (Settings → Appearance → Reduce motion), independent
+   of the OS-level prefers-reduced-motion query above. */
+[data-reduce-motion="true"] * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}

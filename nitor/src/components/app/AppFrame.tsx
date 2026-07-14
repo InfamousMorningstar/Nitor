@@ -1,8 +1,10 @@
+"use client";
 import type { ReactNode } from "react";
 import { Sidebar } from "@/components/nav/Sidebar";
 import { TabBar } from "@/components/nav/TabBar";
 import { CommandPalette } from "@/components/app/CommandPalette";
 import { today } from "@/domain/dates";
+import { useSettingsStore } from "@/state/settingsStore";
 
 interface AppFrameProps {
   children: ReactNode;
@@ -18,6 +20,7 @@ interface AppFrameProps {
  */
 export function AppFrame({ children, progress = 0 }: AppFrameProps) {
   const pct = Math.min(100, Math.max(0, progress));
+  const petName = useSettingsStore((s) => s.petName);
 
   return (
     <>
@@ -36,7 +39,7 @@ export function AppFrame({ children, progress = 0 }: AppFrameProps) {
                 aria-hidden="true"
               />
               <span className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [color:rgb(var(--text-dim))]">
-                Nix &middot; content
+                {petName} &middot; content
               </span>
             </div>
           </div>
