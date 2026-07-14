@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { HabitRow, scheduleLabel } from "@/components/today/HabitRow";
 import { usePetStore } from "@/state/petStore";
@@ -12,6 +12,12 @@ const habit: Habit = {
 
 beforeEach(() => {
   usePetStore.setState({ food: 0, pulse: 0 });
+  // Freeze "today" so a log dated 2026-07-13 counts as today's completion.
+  (globalThis as Record<string, unknown>).__NITOR_NOW__ = "2026-07-13";
+});
+
+afterEach(() => {
+  delete (globalThis as Record<string, unknown>).__NITOR_NOW__;
 });
 
 describe("HabitRow", () => {
