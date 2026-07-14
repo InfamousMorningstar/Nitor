@@ -5,6 +5,9 @@ import { AppFrame } from "@/components/app/AppFrame";
 import { QuoteCard } from "@/components/today/QuoteCard";
 import { HabitRow } from "@/components/today/HabitRow";
 import { useHabits } from "@/state/useHabits";
+import { useSettingsStore } from "@/state/settingsStore";
+import { freezeBank, rescuableMiss } from "@/domain/freezes";
+import { FreezePrompt } from "@/components/today/FreezePrompt";
 import { today } from "@/domain/dates";
 import { isScheduledOn, isComplete } from "@/domain/streaks";
 
@@ -12,6 +15,7 @@ export default function TodayPage() {
   const { habits, logs, loading, log } = useHabits();
   const [doneOpen, setDoneOpen] = useState(false);
   const date = today();
+  const streakFreezeEnabled = useSettingsStore((s) => s.streakFreeze);
 
   const scheduled = useMemo(
     () => habits.filter((h) => !h.archived && isScheduledOn(h, date)),
@@ -32,6 +36,19 @@ export default function TodayPage() {
   const completed = withStatus.filter((s) => s.done);
   const progress = scheduled.length === 0 ? 0 : Math.round((completed.length / scheduled.length) * 100);
 
+  const freezePrompts = useMemo(() => {
+    if (!streakFreezeEnabled) return [];
+    return habits
+      .filter((h) => !h.archived)
+      .map((h) => {
+        const habitLogs = logs.filter((l) => l.habitId === h.id);
+        const missed = rescuableMiss(h, habitLogs, date);
+        if (!missed || freezeBank(h, habitLogs, date) <= 0) return null;
+        return { habit: h, habitLogs, missed };
+      })
+      .filter((p): p is { habit: (typeof habits)[number]; habitLogs: typeof logs; missed: string } => p !== null);
+  }, [habits, logs, date, streakFreezeEnabled]);
+
   return (
     <AppFrame progress={progress}>
       <header className="mb-6">
@@ -45,6 +62,16 @@ export default function TodayPage() {
 
       <div className="max-w-[720px]">
         <QuoteCard />
+
+        {freezePrompts.map(({ habit, habitLogs, missed }) => (
+          <FreezePrompt
+            key={habit.id}
+            habit={habit}
+            logs={habitLogs}
+            missedDate={missed}
+            onUse={() => log({ habitId: habit.id, date: missed, value: false, isFreeze: true })}
+          />
+        ))}
 
         {loading ? (
           <p className="[color:rgb(var(--text-mute))]">Loading&hellip;</p>
