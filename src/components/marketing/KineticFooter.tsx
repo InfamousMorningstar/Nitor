@@ -73,21 +73,25 @@ function NewsletterForm() {
 }
 
 /**
- * Small "maker's seal" — the crest is an ornate, dark, gold/maroon
- * coat-of-arms, so it always sits on a fixed dark chip (not the theme
- * surface token) with a hairline frame, keeping it legible on light
- * theme too. Degrades to nothing if /crest.png is missing.
+ * Small "maker's seal" — the Ahmad coat-of-arms (helm + shield + wolves)
+ * cropped to a legible emblem (/crest-seal.png; the full poster lives at
+ * /crest.png). The art is dark gold/maroon on near-black, so it sits on a
+ * fixed dark chip (not the theme surface token) with a hairline frame and
+ * fills it edge-to-edge via object-cover — seamless on light theme too.
+ * Degrades to nothing if the asset is missing.
  */
 function CrestSeal() {
   const [errored, setErrored] = useState(false);
   if (errored) return null;
   return (
-    <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border p-1.5 [background:#0A0A0B] [border-color:rgb(var(--hairline)/0.16)] shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+    <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border [background:#0A0A0B] [border-color:rgb(var(--hairline)/0.16)] shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/crest.png"
-        alt="Salman Ahmad crest"
-        className="h-full w-full rounded-full object-contain"
+        src="/crest-seal.png"
+        alt="Salman Ahmad coat of arms"
+        width={48}
+        height={48}
+        className="h-full w-full rounded-full object-cover"
         onError={() => setErrored(true)}
       />
     </span>

@@ -3,8 +3,9 @@
 Redesign of Nitor into a matte, editorial, premium habit tracker (the glassmorphism build was
 rejected). Front-end-first prototype; auth stubbed; Supabase wired later behind `HabitRepository`.
 
-**Branch:** `feat/redesign` (this is the active line) · **main:** the earlier build.
-**Status:** entire page surface built. 90 tests passing, clean production build.
+**Branch:** `main` is now the active baseline — the redesign was promoted onto it (the old
+glassmorphism build is gone from `main`; `feat/redesign` remains only as history).
+**Status:** entire page surface built. 96 tests passing, clean production build.
 
 _Last updated: 2026-07-14._
 
@@ -43,12 +44,17 @@ _Last updated: 2026-07-14._
   notifications (stub prefs), quotes (traditions), pet (rename), data (**export JSON + CSV**).
 - **Auth** — login / signup (password-strength bar) / forgot-password, split layout with Nix + a
   rotating quote, OAuth **stubs**; **3-step onboarding** (pick habits → reminder window → name pet).
-- **Landing** (`/`) — hero (headline + Nix), **GSAP scroll story** (4 scrubbed acts), Why-Nitor
-  strip, kinetic **NITOЯ** footer.
+- **Landing** (`/`) — hero (headline + Nix + **Start free / Log in** paired CTAs), scroll story
+  with **cursor + scroll parallax** and on-entry reveals, Why-Nitor strip, kinetic **NITOЯ**
+  footer. Quiet editorial top nav = wordmark + **liquid light/dark switch** (gooey metaball, now
+  flanked by sun/moon icons that brighten on the active side).
+- **Footer maker's seal** — the **Ahmad coat-of-arms** (`/crest.png` full; `/crest-seal.png` the
+  helm+shield emblem crop) on a fixed dark chip beside the "Designed & Engineered by Salman Ahmad"
+  attribution → portfolio.ahmxd.net. Verified legible on both themes.
 - **Loader** (≤2s glitch intro → mirrored Я, skippable, reduced-motion fallback) + on-brand **404**.
 
 ### Domain / tests
-- 5 habit types + everyNDays/monthly schedules in the engine. 90 tests (streaks, insights, stats,
+- 5 habit types + everyNDays/monthly schedules in the engine. 96 tests (streaks, insights, stats,
   quotes, emoji search, components).
 
 ---
@@ -61,8 +67,8 @@ _Last updated: 2026-07-14._
    history, **log-editor to fix check-ins up to 7 days back**); inline edit.
 3. **Quotes** — expand from ~12 to **150–300** with verified primary sources; honor the Settings
    traditions filter. (Authenticity is a hard requirement.)
-4. **Favicon** = mirrored Я; focused **a11y audit** (keyboard, AA contrast, chart aria + table
-   fallbacks, drawer focus traps).
+4. **Favicon** = mirrored Я (still the default Next.js `favicon.ico`); focused **a11y audit**
+   (keyboard, AA contrast, chart aria + table fallbacks, drawer focus traps). _Crest seal: done._
 5. **3D pet asset** — awaiting a **Spline scene URL or rigged `.glb`** (states
    `idle/eat/happy/sleepy/evolve`) to replace the placeholder in `NixCreature` + the landing hero.
 6. **Backend (Phase 2)** — Supabase auth (OAuth) + Postgres + RLS behind the existing
@@ -72,5 +78,7 @@ _Last updated: 2026-07-14._
 
 ## Notes
 - Auth is stubbed: any email + password enters the app (see README).
-- `main` holds the earlier build; `feat/redesign` is the current work and should become the new
-  baseline once reviewed.
+- `main` is the live baseline (redesign promoted). `feat/redesign` is kept only as history and can
+  be deleted once nothing else references it.
+- `public/` still carries the default Next.js starter SVGs (`next.svg`, `vercel.svg`, `file.svg`,
+  `globe.svg`, `window.svg`) — safe to delete in a cleanup pass.
