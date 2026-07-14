@@ -5,7 +5,6 @@ import { Glitch } from "@/components/brand/Glitch";
 
 const COLUMNS: { title: string; links: string[] }[] = [
   { title: "Product", links: ["Features", "Pricing", "Changelog", "Roadmap"] },
-  { title: "Company", links: ["About", "Blog", "Careers"] },
   { title: "Legal", links: ["Privacy", "Terms", "Security"] },
 ];
 
@@ -70,6 +69,47 @@ function NewsletterForm() {
           </button>
         </form>
       )}
+    </div>
+  );
+}
+
+/**
+ * Small "maker's seal" — the crest is an ornate, dark, gold/maroon
+ * coat-of-arms, so it always sits on a fixed dark chip (not the theme
+ * surface token) with a hairline frame, keeping it legible on light
+ * theme too. Degrades to nothing if /crest.png is missing.
+ */
+function CrestSeal() {
+  const [errored, setErrored] = useState(false);
+  if (errored) return null;
+  return (
+    <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border p-1.5 [background:#0A0A0B] [border-color:rgb(var(--hairline)/0.16)] shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/crest.png"
+        alt="Salman Ahmad crest"
+        className="h-full w-full rounded-full object-contain"
+        onError={() => setErrored(true)}
+      />
+    </span>
+  );
+}
+
+function FooterAttribution() {
+  return (
+    <div className="flex items-center gap-3">
+      <CrestSeal />
+      <span className="font-[family-name:var(--font-mono)] text-xs [color:rgb(var(--text-mute))]">
+        Designed &amp; Engineered by{" "}
+        <a
+          href="https://portfolio.ahmxd.net"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="[color:rgb(var(--text-dim))] transition-colors duration-[var(--dur-micro)] hover:[color:rgb(var(--accent))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+        >
+          Salman Ahmad
+        </a>
+      </span>
     </div>
   );
 }
@@ -161,7 +201,7 @@ export function KineticFooter() {
   return (
     <footer className="relative overflow-hidden border-t [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--bg))]">
       <div className="mx-auto w-full max-w-[1200px] px-6 pt-20 md:px-10">
-        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
           {COLUMNS.map((c) => (
             <FooterColumn key={c.title} title={c.title} links={c.links} />
           ))}
@@ -187,14 +227,17 @@ export function KineticFooter() {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center justify-between gap-4 border-t px-6 py-6 [border-color:rgb(var(--hairline)/0.08)] sm:flex-row md:px-10">
-        <span className="font-[family-name:var(--font-mono)] text-xs [color:rgb(var(--text-mute))]">
-          &copy; {new Date().getFullYear()} Nitor
-        </span>
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center justify-between gap-6 border-t px-6 py-6 [border-color:rgb(var(--hairline)/0.08)] sm:flex-row md:px-10">
+        <div className="flex flex-col items-center gap-1 sm:items-start">
+          <span className="font-[family-name:var(--font-mono)] text-xs [color:rgb(var(--text-mute))]">
+            &copy; {new Date().getFullYear()} Nitor
+          </span>
+          <span className="font-[family-name:var(--font-mono)] text-xs [color:rgb(var(--text-mute))]">
+            Made to be kept.
+          </span>
+        </div>
+        <FooterAttribution />
         <FooterThemeToggle />
-        <span className="font-[family-name:var(--font-mono)] text-xs [color:rgb(var(--text-mute))]">
-          Made to be kept.
-        </span>
       </div>
     </footer>
   );
