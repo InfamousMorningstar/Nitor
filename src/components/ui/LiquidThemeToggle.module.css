@@ -14,7 +14,8 @@
   border-radius: 999px;
   line-height: 0;
 }
-.wrap:focus-within {
+/* Ring only on keyboard focus (:focus-visible), never on mouse click. */
+.wrap:has(:focus-visible) {
   outline: 2px solid rgb(var(--accent));
   outline-offset: 2px;
 }
