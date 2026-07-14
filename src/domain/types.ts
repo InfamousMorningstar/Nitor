@@ -42,6 +42,8 @@ export interface Log {
   value: number | boolean;
   note?: string;
   isGraceDay: boolean;
+  /** true when this day was rescued by spending an earned streak-freeze */
+  isFreeze?: boolean;
   createdAt: string; // ISO
 }
 

@@ -50,7 +50,7 @@ export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak 
     if (diffDays(cursor, habit.createdAt) < 0) break;
     if (isScheduledOn(habit, cursor)) {
       const l = byDate.get(cursor);
-      if (isComplete(habit, l) || l?.isGraceDay) current++;
+      if (isComplete(habit, l) || l?.isGraceDay || l?.isFreeze) current++;
       else break;
     }
     cursor = addDays(cursor, -1);
@@ -62,7 +62,7 @@ export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak 
   for (let d = habit.createdAt; diffDays(end, d) >= 0; d = addDays(d, 1)) {
     if (!isScheduledOn(habit, d)) continue;
     const l = byDate.get(d);
-    if (isComplete(habit, l) || l?.isGraceDay) {
+    if (isComplete(habit, l) || l?.isGraceDay || l?.isFreeze) {
       run++;
       longest = Math.max(longest, run);
     } else {
@@ -79,7 +79,7 @@ export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak 
     if (isScheduledOn(habit, momentumCursor)) {
       scheduled++;
       const l = byDate.get(momentumCursor);
-      if (isComplete(habit, l) || l?.isGraceDay) good++;
+      if (isComplete(habit, l) || l?.isGraceDay || l?.isFreeze) good++;
     }
     momentumCursor = addDays(momentumCursor, -1);
   }
