@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/state/theme";
 import { RepositoryProvider } from "@/state/RepositoryProvider";
 import { GlassFilterDefs } from "@/components/glass/GlassFilterDefs";
+import { Loader } from "@/components/brand/Loader";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -34,6 +35,7 @@ export default function RootLayout({
         <ThemeProvider>
           <RepositoryProvider>
             <GlassFilterDefs />
+            <Loader />
             {children}
           </RepositoryProvider>
         </ThemeProvider>
