@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppFrame } from "@/components/app/AppFrame";
 import { NixCreature, type NixState } from "@/components/pet/NixCreature";
 import { useHabits } from "@/state/useHabits";
-import { usePetStore } from "@/state/petStore";
+import { usePetStore, unlockedAccessories } from "@/state/petStore";
 import { useSettingsStore } from "@/state/settingsStore";
 import {
   glowRate,
@@ -32,7 +32,7 @@ const MOOD_COPY: Record<string, string> = {
 export default function PetPage() {
   const { habits, logs, loading } = useHabits();
   const petName = useSettingsStore((s) => s.petName);
-  const { food, feed, accessory, setAccessory } = usePetStore();
+  const { food, feed, equipped, setEquipped } = usePetStore();
 
   const [eating, setEating] = useState(false);
   const eatTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,8 +44,9 @@ export default function PetPage() {
   const evo = evolutionProgress(activeDays);
   const best = useMemo(() => bestStreakDays(habits, logs), [habits, logs]);
   const memory = useMemo(() => buildMemoryLog(habits, logs, petName), [habits, logs, petName]);
+  const unlockedIds = useMemo(() => new Set(unlockedAccessories(best)), [best]);
 
-  const creatureState: NixState = eating ? "eat" : mood === "sleepy" ? "sleepy" : mood === "radiant" ? "radiant" : "idle";
+  const creatureState: NixState = eating ? "eating" : mood === "sleepy" ? "sleepy" : mood === "radiant" ? "radiant" : "idle";
 
   function handleFeed() {
     feed(1);
@@ -54,7 +55,7 @@ export default function PetPage() {
     eatTimeout.current = setTimeout(() => setEating(false), 380);
   }
 
-  const equipped = WARDROBE_ITEMS.find((w) => w.id === accessory) ?? WARDROBE_ITEMS[0];
+  const equippedItem = WARDROBE_ITEMS.find((w) => w.id === equipped) ?? WARDROBE_ITEMS[0];
 
   return (
     <AppFrame>
@@ -71,7 +72,7 @@ export default function PetPage() {
         <div className="max-w-[1000px] space-y-6">
           {/* Hero — the creature's glow is the focal point of this whole page. */}
           <section className={`${card} flex flex-col items-center gap-4 py-10 text-center`}>
-            <NixCreature glow={glow} state={creatureState} size={220} />
+            <NixCreature glow={glow} state={creatureState} equipped={equipped} size={220} />
             <div>
               <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight [color:rgb(var(--text))]">
                 {petName}
@@ -79,8 +80,8 @@ export default function PetPage() {
               <p className={`${mono} mt-1 text-sm [color:rgb(var(--text-dim))]`}>
                 Glow <span className="[color:rgb(var(--accent))]">{Math.round(glow * 100)}%</span>
                 <span className="[color:rgb(var(--text-mute))]"> &middot; {evo.stage.label}</span>
-                {equipped.id !== "none" && (
-                  <span className="[color:rgb(var(--text-mute))]"> &middot; wearing {equipped.label}</span>
+                {equippedItem.id !== "none" && (
+                  <span className="[color:rgb(var(--text-mute))]"> &middot; wearing {equippedItem.label}</span>
                 )}
               </p>
             </div>
@@ -155,14 +156,14 @@ export default function PetPage() {
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
               {WARDROBE_ITEMS.map((item) => {
-                const unlocked = best >= item.milestone;
-                const selected = accessory === item.id;
+                const unlocked = unlockedIds.has(item.id);
+                const selected = equipped === item.id;
                 return (
                   <button
                     key={item.id}
                     type="button"
                     disabled={!unlocked}
-                    onClick={() => unlocked && setAccessory(item.id)}
+                    onClick={() => unlocked && setEquipped(item.id)}
                     aria-pressed={selected}
                     className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-center transition-colors duration-[var(--dur-micro)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] ${
                       selected

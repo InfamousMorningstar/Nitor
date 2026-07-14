@@ -1,8 +1,10 @@
 /*
- * NixCreature primitive — procedural placeholder for the eventual
- * Spline/.glb creature. Flat matte body; the amber inner glow is the ONE
- * sanctioned use of luminous accent in the whole app (it literally is the
- * pet's glow — see DESIGN.md). No other color leaks out of this component.
+ * NixCreature — original layered-SVG creature. The amber glow circle is the
+ * ONE sanctioned use of luminous accent + blur in the whole app (see
+ * DESIGN.md — it literally is the pet's glow). Wardrobe accessory layers
+ * are flat/matte cosmetics with no blur of their own. All motion here is
+ * driven by [data-state] and respects Settings → petAnimation + OS-level
+ * prefers-reduced-motion.
  */
 
 .wrap {
@@ -11,25 +13,36 @@
   place-items: center;
 }
 
-.body {
-  position: relative;
+/* -- body stage (position/scale animation) -------------------------------- */
+
+.stage,
+.stageStatic {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+.stage {
   will-change: transform;
 }
 
-.bob {
+.stage[data-state="idle"] {
   animation: nix-bob 4200ms ease-in-out infinite;
 }
 
-.bobSleepy {
-  animation: nix-bob-sleepy 6000ms ease-in-out infinite;
+.stage[data-state="happy"] {
+  animation: nix-happy 900ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
-.eatPulse {
-  animation: nix-eat 380ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+.stage[data-state="sleepy"] {
+  animation: nix-breathe 6000ms ease-in-out infinite;
 }
 
-.radiantRing {
-  animation: nix-radiant-ring 3200ms ease-in-out infinite;
+.stage[data-state="eating"] {
+  animation: nix-chomp 420ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+.stage[data-state="radiant"] {
+  animation: nix-bob 5200ms ease-in-out infinite;
 }
 
 @keyframes nix-bob {
@@ -38,49 +51,210 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-6%);
+    transform: translateY(-8px);
   }
 }
 
-@keyframes nix-bob-sleepy {
+@keyframes nix-happy {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  30% {
+    transform: translateY(-14px) scale(0.94, 1.08);
+  }
+  55% {
+    transform: translateY(3px) scale(1.07, 0.92);
+  }
+  75% {
+    transform: translateY(-4px) scale(0.98, 1.02);
+  }
+}
+
+@keyframes nix-breathe {
   0%,
   100% {
     transform: translateY(0) scale(1);
   }
   50% {
-    transform: translateY(-2%) scale(0.995);
+    transform: translateY(-2px) scale(0.98);
   }
 }
 
-@keyframes nix-eat {
+@keyframes nix-chomp {
   0% {
-    transform: scale(1);
+    transform: scale(1, 1);
   }
   35% {
-    transform: scale(1.08);
+    transform: scale(1.08, 0.92);
+  }
+  65% {
+    transform: scale(0.96, 1.05);
   }
   100% {
-    transform: scale(1);
+    transform: scale(1, 1);
   }
 }
 
-@keyframes nix-radiant-ring {
+/* -- glow (opacity/scale pulse, independent of body position) ------------- */
+
+.glow,
+.glowStatic {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+.glow[data-state="idle"] {
+  animation: nix-glow-breathe 4200ms ease-in-out infinite;
+}
+
+.glow[data-state="happy"] {
+  animation: nix-glow-breathe 900ms ease-in-out infinite;
+}
+
+.glow[data-state="sleepy"] {
+  animation: nix-glow-dim 6000ms ease-in-out infinite;
+}
+
+.glow[data-state="eating"] {
+  animation: nix-glow-breathe 420ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+.glow[data-state="radiant"] {
+  animation: nix-glow-radiant 3200ms ease-in-out infinite;
+}
+
+@keyframes nix-glow-breathe {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 1;
     transform: scale(1);
   }
   50% {
-    opacity: 0.65;
-    transform: scale(1.04);
+    opacity: 0.82;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes nix-glow-dim {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes nix-glow-radiant {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+/* -- mouth / eyelids / zzz -------------------------------------------------- */
+
+.mouth[data-state="eating"] {
+  animation: nix-mouth-chomp 420ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+@keyframes nix-mouth-chomp {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  45% {
+    transform: scaleY(0.35);
+  }
+}
+
+.z1,
+.z2 {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: nix-zzz-float 3200ms ease-in-out infinite;
+}
+
+.z2 {
+  animation-delay: 700ms;
+}
+
+@keyframes nix-zzz-float {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+/* -- accessory micro-motion -------------------------------------------------- */
+
+.halo {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: nix-halo-spin 5200ms ease-in-out infinite;
+}
+
+@keyframes nix-halo-spin {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.82);
+  }
+}
+
+.ember {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: nix-ember-rise 1800ms ease-in-out infinite;
+}
+
+@keyframes nix-ember-rise {
+  0% {
+    opacity: 0.25;
+    transform: translateY(4px) scale(0.8);
+  }
+  50% {
+    opacity: 0.95;
+    transform: translateY(-6px) scale(1.05);
+  }
+  100% {
+    opacity: 0.25;
+    transform: translateY(4px) scale(0.8);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bob,
-  .bobSleepy,
-  .eatPulse,
-  .radiantRing {
+  .stage,
+  .glow,
+  .mouth,
+  .z1,
+  .z2,
+  .halo,
+  .ember {
     animation: none !important;
     transform: none !important;
   }
