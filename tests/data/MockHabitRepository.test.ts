@@ -34,4 +34,11 @@ describe("MockHabitRepository", () => {
     const habits = await repo.listHabits();
     expect(habits.find((x) => x.id === h.id)).toBeUndefined();
   });
+
+  it("persists isFreeze on a logged value", async () => {
+    const repo = createSeededRepository();
+    const [h] = await repo.listHabits();
+    const l = await repo.logValue({ habitId: h.id, date: "2026-02-02", value: false, isFreeze: true });
+    expect(l.isFreeze).toBe(true);
+  });
 });
