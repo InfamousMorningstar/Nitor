@@ -51,34 +51,38 @@ function ActHeading({ n, title, blurb }: ActHeadingProps) {
   );
 }
 
+const SECTION =
+  "relative flex min-h-[72vh] w-full items-center border-t [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--bg))]";
+const INNER =
+  "mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10";
+
 /**
- * GSAP ScrollTrigger scroll story: four pinned, scrubbed acts. All timelines
- * are built inside a dynamically-imported, client-only effect (gsap touches
- * `window`/`document`, so it must never execute during SSR) and torn down
- * on unmount via `gsap.context().revert()`. Under reduced-motion, no
- * ScrollTrigger is ever created and a compact static fallback renders
- * instead (settled end-states, normal document flow, no pinning).
+ * Scroll story: four short, un-pinned acts. Each act's copy and visual are
+ * two parallax layers (scroll-linked yPercent, different magnitudes → depth),
+ * and each act's signature animation plays once on entry (reversible via
+ * toggleActions) rather than scrubbing over a long pinned distance — so the
+ * page stays lively but short. gsap touches window/document, so all of it runs
+ * inside a client-only dynamic import and is torn down with context.revert().
+ * Under reduced-motion no ScrollTrigger is created and a compact static
+ * fallback renders in normal flow.
  */
 export function ScrollStory() {
   const [reducedMotion, setReducedMotion] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
+  const sectionRefs = useRef<Array<HTMLElement | null>>([]);
+  const headRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const visRefs = useRef<Array<HTMLDivElement | null>>([]);
+
   // Act 1 — habit card
-  const act1Ref = useRef<HTMLDivElement>(null);
   const checkFillRef = useRef<HTMLSpanElement>(null);
   const checkMarkRef = useRef<HTMLSpanElement>(null);
   const streakLabelRef = useRef<HTMLSpanElement>(null);
-
   // Act 2 — heatmap
-  const act2Ref = useRef<HTMLDivElement>(null);
   const cellRefs = useRef<Array<SVGRectElement | null>>([]);
-
   // Act 3 — pet
-  const act3Ref = useRef<HTMLDivElement>(null);
-  const [petGlow, setPetGlow] = useState(0.15);
-
+  const [petGlow, setPetGlow] = useState(0.2);
   // Act 4 — quote
-  const act4Ref = useRef<HTMLDivElement>(null);
   const quoteSpanRef = useRef<HTMLSpanElement>(null);
 
   const quote = quoteOfDay(today());
@@ -100,63 +104,100 @@ export function ScrollStory() {
       if (cancelled) return;
 
       ctx = gsap.context(() => {
-        if (act1Ref.current && checkFillRef.current && checkMarkRef.current && streakLabelRef.current) {
-          gsap.set(checkFillRef.current, { opacity: 0, scale: 0.7, transformOrigin: "50% 50%" });
-          gsap.set(checkMarkRef.current, { opacity: 0 });
-          gsap.set(streakLabelRef.current, { opacity: 0, y: 8 });
+        // Per-act: parallax (scrub) on copy + visual, and a reveal on entry.
+        sectionRefs.current.forEach((section, i) => {
+          const head = headRefs.current[i];
+          const vis = visRefs.current[i];
+          if (!section) return;
 
-          gsap
-            .timeline({
-              scrollTrigger: {
-                trigger: act1Ref.current,
-                start: "top top",
-                end: "+=1200",
-                scrub: 0.6,
-                pin: true,
+          if (head) {
+            gsap.fromTo(
+              head,
+              { yPercent: 5 },
+              {
+                yPercent: -5,
+                ease: "none",
+                scrollTrigger: { trigger: section, start: "top bottom", end: "bottom top", scrub: true },
               },
-            })
-            .to(checkFillRef.current, { opacity: 1, scale: 1, duration: 1, ease: "power2.out" }, 0.3)
-            .to(checkMarkRef.current, { opacity: 1, duration: 0.4 }, 0.5)
-            .to(streakLabelRef.current, { opacity: 1, y: 0, duration: 0.5 }, 0.68);
+            );
+            gsap.from(head, {
+              opacity: 0,
+              y: 26,
+              duration: 0.6,
+              ease: "power3.out",
+              scrollTrigger: { trigger: section, start: "top 78%", toggleActions: "play none none reverse" },
+            });
+          }
+
+          if (vis) {
+            gsap.fromTo(
+              vis,
+              { yPercent: 12 },
+              {
+                yPercent: -12,
+                ease: "none",
+                scrollTrigger: { trigger: section, start: "top bottom", end: "bottom top", scrub: true },
+              },
+            );
+            gsap.from(vis, {
+              opacity: 0,
+              y: 40,
+              duration: 0.7,
+              ease: "power3.out",
+              scrollTrigger: { trigger: section, start: "top 78%", toggleActions: "play none none reverse" },
+            });
+          }
+        });
+
+        const onEnter = (trigger: Element) => ({
+          trigger,
+          start: "top 68%",
+          toggleActions: "play none none reverse" as const,
+        });
+
+        // Act 1 — check draws in + streak label pops.
+        if (sectionRefs.current[0] && checkFillRef.current && checkMarkRef.current && streakLabelRef.current) {
+          gsap
+            .timeline({ scrollTrigger: onEnter(sectionRefs.current[0]!) })
+            .fromTo(checkFillRef.current, { opacity: 0, scale: 0.6, transformOrigin: "50% 50%" }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)" })
+            .fromTo(checkMarkRef.current, { opacity: 0 }, { opacity: 1, duration: 0.25 }, "-=0.12")
+            .fromTo(streakLabelRef.current, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, "-=0.05");
         }
 
-        if (act2Ref.current) {
+        // Act 2 — heatmap cells paint in.
+        if (sectionRefs.current[1]) {
           const cells = cellRefs.current.filter((c): c is SVGRectElement => c !== null);
-          gsap.set(cells, { opacity: 0 });
-          gsap.timeline({
-            scrollTrigger: {
-              trigger: act2Ref.current,
-              start: "top top",
-              end: "+=1500",
-              scrub: 0.6,
-              pin: true,
-            },
-          }).to(cells, { opacity: 1, stagger: 0.012, ease: "none" });
+          gsap.fromTo(
+            cells,
+            { opacity: 0 },
+            { opacity: 1, stagger: 0.01, ease: "none", duration: 0.02, scrollTrigger: onEnter(sectionRefs.current[1]!) },
+          );
         }
 
-        if (act3Ref.current) {
-          ScrollTrigger.create({
-            trigger: act3Ref.current,
-            start: "top top",
-            end: "+=1200",
-            scrub: 0.6,
-            pin: true,
-            onUpdate: (self) => setPetGlow(0.15 + self.progress * 0.85),
+        // Act 3 — pet glow rises.
+        if (sectionRefs.current[2]) {
+          const proxy = { g: 0.2 };
+          gsap.to(proxy, {
+            g: 1,
+            duration: 1.3,
+            ease: "power2.out",
+            scrollTrigger: onEnter(sectionRefs.current[2]!),
+            onUpdate: () => setPetGlow(proxy.g),
           });
         }
 
-        if (act4Ref.current && quoteSpanRef.current) {
+        // Act 4 — quote types itself.
+        if (sectionRefs.current[3] && quoteSpanRef.current) {
           const el = quoteSpanRef.current;
           const full = quote.text;
-          ScrollTrigger.create({
-            trigger: act4Ref.current,
-            start: "top top",
-            end: "+=1300",
-            scrub: 0.6,
-            pin: true,
-            onUpdate: (self) => {
-              const count = Math.round(full.length * self.progress);
-              el.textContent = full.slice(0, count);
+          const proxy = { n: 0 };
+          gsap.to(proxy, {
+            n: full.length,
+            duration: 1.5,
+            ease: "none",
+            scrollTrigger: onEnter(sectionRefs.current[3]!),
+            onUpdate: () => {
+              el.textContent = full.slice(0, Math.round(proxy.n));
             },
           });
         }
@@ -174,44 +215,39 @@ export function ScrollStory() {
     return <StaticStory quoteText={quote.text} quoteAuthor={quote.author} quoteSource={quote.source} />;
   }
 
+  const setSection = (i: number) => (el: HTMLElement | null) => {
+    sectionRefs.current[i] = el;
+  };
+  const setHead = (i: number) => (el: HTMLDivElement | null) => {
+    headRefs.current[i] = el;
+  };
+  const setVis = (i: number) => (el: HTMLDivElement | null) => {
+    visRefs.current[i] = el;
+  };
+
   return (
     <div ref={rootRef}>
       {/* Act 1 */}
-      <section
-        ref={act1Ref}
-        className="relative flex h-screen w-full items-center border-t [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--bg))]"
-      >
-        <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10">
-          <ActHeading {...ACTS[0]} />
-          <div className="mx-auto w-full max-w-[380px]">
+      <section ref={setSection(0)} className={SECTION}>
+        <div className={INNER}>
+          <div ref={setHead(0)} style={{ willChange: "transform" }}>
+            <ActHeading {...ACTS[0]} />
+          </div>
+          <div ref={setVis(0)} className="mx-auto w-full max-w-[380px]" style={{ willChange: "transform" }}>
             <div className="relative flex items-center gap-3 rounded-2xl border px-5 py-4 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))]">
-              <span
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg [background:rgb(var(--surface-2))]"
-                aria-hidden="true"
-              >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg [background:rgb(var(--surface-2))]" aria-hidden="true">
                 📚
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[15px] [color:rgb(var(--text))]">Read 20 pages</div>
-                <div className="mt-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [color:rgb(var(--text-mute))]">
-                  Daily
-                </div>
+                <div className="mt-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [color:rgb(var(--text-mute))]">Daily</div>
               </div>
               <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border [border-color:rgb(var(--hairline)/0.16)]">
-                <span
-                  ref={checkFillRef}
-                  className="absolute inset-0 grid place-items-center rounded-full [background:rgb(var(--accent))]"
-                  aria-hidden="true"
-                >
-                  <span ref={checkMarkRef} className="text-lg [color:rgb(var(--bg))]">
-                    &#10003;
-                  </span>
+                <span ref={checkFillRef} className="absolute inset-0 grid place-items-center rounded-full [background:rgb(var(--accent))]" aria-hidden="true">
+                  <span ref={checkMarkRef} className="text-lg [color:rgb(var(--bg))]">&#10003;</span>
                 </span>
               </span>
-              <span
-                ref={streakLabelRef}
-                className="absolute -right-2 -top-3 rounded-full border px-2 py-0.5 font-[family-name:var(--font-mono)] text-[11px] [border-color:rgb(var(--hairline)/0.16)] [background:rgb(var(--surface))] [color:rgb(var(--accent))]"
-              >
+              <span ref={streakLabelRef} className="absolute -right-2 -top-3 rounded-full border px-2 py-0.5 font-[family-name:var(--font-mono)] text-[11px] [border-color:rgb(var(--hairline)/0.16)] [background:rgb(var(--surface))] [color:rgb(var(--accent))]">
                 streak +1
               </span>
             </div>
@@ -220,13 +256,12 @@ export function ScrollStory() {
       </section>
 
       {/* Act 2 */}
-      <section
-        ref={act2Ref}
-        className="relative flex h-screen w-full items-center border-t [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--bg))]"
-      >
-        <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10">
-          <ActHeading {...ACTS[1]} />
-          <div className="mx-auto flex w-full max-w-[420px] justify-center">
+      <section ref={setSection(1)} className={SECTION}>
+        <div className={INNER}>
+          <div ref={setHead(1)} style={{ willChange: "transform" }}>
+            <ActHeading {...ACTS[1]} />
+          </div>
+          <div ref={setVis(1)} className="mx-auto flex w-full max-w-[420px] justify-center" style={{ willChange: "transform" }}>
             <svg
               width={GRID_COLS * STEP - GAP}
               height={GRID_ROWS * STEP - GAP}
@@ -237,7 +272,6 @@ export function ScrollStory() {
               {Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => {
                 const col = i % GRID_COLS;
                 const row = Math.floor(i / GRID_COLS);
-                const level = levelFor(i);
                 return (
                   <rect
                     key={i}
@@ -250,7 +284,7 @@ export function ScrollStory() {
                     height={CELL}
                     rx={3}
                     ry={3}
-                    fill={RAMP[level]}
+                    fill={RAMP[levelFor(i)]}
                   />
                 );
               })}
@@ -260,26 +294,24 @@ export function ScrollStory() {
       </section>
 
       {/* Act 3 */}
-      <section
-        ref={act3Ref}
-        className="relative flex h-screen w-full items-center border-t [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--bg))]"
-      >
-        <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10">
-          <ActHeading {...ACTS[2]} />
-          <div className="mx-auto flex w-full max-w-[380px] items-center justify-center">
+      <section ref={setSection(2)} className={SECTION}>
+        <div className={INNER}>
+          <div ref={setHead(2)} style={{ willChange: "transform" }}>
+            <ActHeading {...ACTS[2]} />
+          </div>
+          <div ref={setVis(2)} className="mx-auto flex w-full max-w-[380px] items-center justify-center" style={{ willChange: "transform" }}>
             <NixCreature glow={petGlow} state={petGlow >= 0.9 ? "radiant" : "idle"} size={190} />
           </div>
         </div>
       </section>
 
       {/* Act 4 */}
-      <section
-        ref={act4Ref}
-        className="relative flex h-screen w-full items-center border-t [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--bg))]"
-      >
-        <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10">
-          <ActHeading {...ACTS[3]} />
-          <div className="mx-auto w-full max-w-[440px]">
+      <section ref={setSection(3)} className={SECTION}>
+        <div className={INNER}>
+          <div ref={setHead(3)} style={{ willChange: "transform" }}>
+            <ActHeading {...ACTS[3]} />
+          </div>
+          <div ref={setVis(3)} className="mx-auto w-full max-w-[440px]" style={{ willChange: "transform" }}>
             <p className="text-xl italic leading-relaxed [font-family:'Times_New_Roman',Times,serif] [color:rgb(var(--text))] sm:text-2xl">
               &ldquo;<span ref={quoteSpanRef} />&rdquo;
             </p>
@@ -305,26 +337,19 @@ function StaticStory({
 }) {
   return (
     <div>
-      <section className="border-t py-24 [border-color:rgb(var(--hairline)/0.08)]">
-        <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10">
+      <section className="border-t py-20 [border-color:rgb(var(--hairline)/0.08)]">
+        <div className={INNER}>
           <ActHeading {...ACTS[0]} />
           <div className="mx-auto w-full max-w-[380px]">
             <div className="relative flex items-center gap-3 rounded-2xl border px-5 py-4 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))]">
-              <span
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg [background:rgb(var(--surface-2))]"
-                aria-hidden="true"
-              >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg [background:rgb(var(--surface-2))]" aria-hidden="true">
                 📚
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[15px] [color:rgb(var(--text))]">Read 20 pages</div>
-                <div className="mt-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [color:rgb(var(--text-mute))]">
-                  Daily
-                </div>
+                <div className="mt-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [color:rgb(var(--text-mute))]">Daily</div>
               </div>
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full [background:rgb(var(--accent))] [color:rgb(var(--bg))]">
-                &#10003;
-              </span>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full [background:rgb(var(--accent))] [color:rgb(var(--bg))]">&#10003;</span>
               <span className="absolute -right-2 -top-3 rounded-full border px-2 py-0.5 font-[family-name:var(--font-mono)] text-[11px] [border-color:rgb(var(--hairline)/0.16)] [background:rgb(var(--surface))] [color:rgb(var(--accent))]">
                 streak +1
               </span>
@@ -333,8 +358,8 @@ function StaticStory({
         </div>
       </section>
 
-      <section className="border-t py-24 [border-color:rgb(var(--hairline)/0.08)]">
-        <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10">
+      <section className="border-t py-20 [border-color:rgb(var(--hairline)/0.08)]">
+        <div className={INNER}>
           <ActHeading {...ACTS[1]} />
           <div className="mx-auto flex w-full max-w-[420px] justify-center">
             <svg
@@ -348,16 +373,7 @@ function StaticStory({
                 const col = i % GRID_COLS;
                 const row = Math.floor(i / GRID_COLS);
                 return (
-                  <rect
-                    key={i}
-                    x={col * STEP}
-                    y={row * STEP}
-                    width={CELL}
-                    height={CELL}
-                    rx={3}
-                    ry={3}
-                    fill={RAMP[levelFor(i)]}
-                  />
+                  <rect key={i} x={col * STEP} y={row * STEP} width={CELL} height={CELL} rx={3} ry={3} fill={RAMP[levelFor(i)]} />
                 );
               })}
             </svg>
@@ -365,8 +381,8 @@ function StaticStory({
         </div>
       </section>
 
-      <section className="border-t py-24 [border-color:rgb(var(--hairline)/0.08)]">
-        <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10">
+      <section className="border-t py-20 [border-color:rgb(var(--hairline)/0.08)]">
+        <div className={INNER}>
           <ActHeading {...ACTS[2]} />
           <div className="mx-auto flex w-full max-w-[380px] items-center justify-center">
             <NixCreature glow={1} state="radiant" size={190} />
@@ -374,8 +390,8 @@ function StaticStory({
         </div>
       </section>
 
-      <section className="border-t py-24 [border-color:rgb(var(--hairline)/0.08)]">
-        <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-10">
+      <section className="border-t py-20 [border-color:rgb(var(--hairline)/0.08)]">
+        <div className={INNER}>
           <ActHeading {...ACTS[3]} />
           <div className="mx-auto w-full max-w-[440px]">
             <p className="text-xl italic leading-relaxed [font-family:'Times_New_Roman',Times,serif] [color:rgb(var(--text))] sm:text-2xl">

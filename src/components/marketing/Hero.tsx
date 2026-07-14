@@ -6,36 +6,64 @@ import { MarketingNav } from "./MarketingNav";
 
 /**
  * Full-viewport hero. Left: display headline + subhead + CTAs. Right: Nix
- * on a floating matte slab with subtle cursor-parallax. Parallax is applied
- * imperatively (direct style writes on rAF) rather than via React state, so
- * mousemove never triggers a re-render. Disabled under reduced-motion.
+ * on a floating matte slab. Two parallax layers, composed into a single
+ * imperative transform per element (no React re-render): cursor parallax on
+ * the slab, plus scroll parallax that drifts the slab down and the copy up as
+ * the hero scrolls away, giving depth as you leave the screen. Disabled under
+ * reduced-motion.
  */
 export function Hero() {
   const slabRef = useRef<HTMLDivElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
   const frame = useRef<number | null>(null);
+  const mouse = useRef({ x: 0, y: 0 });
+  const scrollY = useRef(0);
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) return;
 
     const slab = slabRef.current;
+    const copy = copyRef.current;
     if (!slab) return;
 
-    function handleMove(e: MouseEvent) {
+    function write() {
+      if (!slab) return;
+      const s = scrollY.current;
+      const { x, y } = mouse.current;
+      // slab: cursor drift + a gentle downward scroll lag (moves slower than page)
+      slab.style.transform = `translate(${x * 14}px, ${y * 10 + s * 0.18}px)`;
+      // copy: rises slightly faster than the page and fades as the hero leaves
+      if (copy) {
+        copy.style.transform = `translateY(${s * -0.08}px)`;
+        copy.style.opacity = String(Math.max(0, 1 - s / 620));
+      }
+    }
+
+    function schedule() {
       if (frame.current) cancelAnimationFrame(frame.current);
-      frame.current = requestAnimationFrame(() => {
-        const { innerWidth, innerHeight } = window;
-        const x = (e.clientX / innerWidth - 0.5) * 2; // -1..1
-        const y = (e.clientY / innerHeight - 0.5) * 2;
-        if (slab) {
-          slab.style.transform = `translate(${x * 14}px, ${y * 10}px)`;
-        }
-      });
+      frame.current = requestAnimationFrame(write);
+    }
+
+    function handleMove(e: MouseEvent) {
+      const { innerWidth, innerHeight } = window;
+      mouse.current = {
+        x: (e.clientX / innerWidth - 0.5) * 2, // -1..1
+        y: (e.clientY / innerHeight - 0.5) * 2,
+      };
+      schedule();
+    }
+
+    function handleScroll() {
+      scrollY.current = window.scrollY;
+      schedule();
     }
 
     window.addEventListener("mousemove", handleMove);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("scroll", handleScroll);
       if (frame.current) cancelAnimationFrame(frame.current);
     };
   }, []);
@@ -45,7 +73,7 @@ export function Hero() {
       <MarketingNav />
 
       <div className="mx-auto grid w-full max-w-[1200px] flex-1 grid-cols-1 items-center gap-12 px-6 pt-28 pb-16 md:grid-cols-2 md:px-10 md:pt-24">
-        <div className="max-w-[560px]">
+        <div ref={copyRef} className="max-w-[560px]" style={{ willChange: "transform, opacity" }}>
           <h1 className="font-[family-name:var(--font-display)] text-[clamp(2.75rem,6vw,4.5rem)] font-semibold leading-[1.03] tracking-tight [color:rgb(var(--text))]">
             Habits are boring.
             <br />
