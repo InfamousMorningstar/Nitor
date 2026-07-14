@@ -157,6 +157,56 @@ export function HabitRow({ habit, logs, onLog }: HabitRowProps) {
           onComplete={celebrate}
         />
       )}
+
+      {habit.type === "quantified" && (
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            aria-label={`Decrease ${habit.name}`}
+            onClick={() => onLog(Math.max(0, count - 1))}
+            className="grid h-9 w-9 place-items-center rounded-full border text-base transition-colors duration-[var(--dur-micro)] [border-color:rgb(var(--hairline)/0.16)] [color:rgb(var(--text-dim))] hover:[border-color:rgb(var(--accent)/0.5)] hover:[color:rgb(var(--accent))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+          >
+            −
+          </button>
+          <span className={`${mono} min-w-[4.5rem] text-center text-sm [color:rgb(var(--text))]`}>
+            {count}/{target}
+            {habit.unit ? ` ${habit.unit}` : ""}
+          </span>
+          <button
+            type="button"
+            aria-label={`Increase ${habit.name}`}
+            onClick={() => {
+              const next = count + 1;
+              onLog(next);
+              if (next >= target && count < target) celebrate();
+            }}
+            className="grid h-9 w-9 place-items-center rounded-full border text-base transition-colors duration-[var(--dur-micro)] [border-color:rgb(var(--hairline)/0.16)] [color:rgb(var(--text-dim))] hover:[border-color:rgb(var(--accent)/0.5)] hover:[color:rgb(var(--accent))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+          >
+            +
+          </button>
+        </div>
+      )}
+
+      {habit.type === "quit" && (
+        <button
+          type="button"
+          aria-label={`Mark ${habit.name} ${done ? "not clean today" : "clean today"}`}
+          aria-pressed={done}
+          onClick={() => {
+            const next = !done;
+            onLog(next);
+            if (next) celebrate();
+          }}
+          className={
+            "grid h-11 w-11 shrink-0 place-items-center rounded-full border text-lg transition-colors duration-[var(--dur-micro)] [transition-timing-function:var(--ease)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] " +
+            (done
+              ? "border-transparent [background:rgb(var(--accent))] text-black"
+              : "[border-color:rgb(var(--hairline)/0.16)] [color:rgb(var(--text-mute))] hover:[border-color:rgb(var(--accent)/0.5)] hover:[color:rgb(var(--accent))]")
+          }
+        >
+          {done ? "✓" : ""}
+        </button>
+      )}
     </div>
   );
 }
