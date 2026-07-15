@@ -146,6 +146,10 @@ function boolLog(habitId: string, date: string, value: boolean): Log {
   return { id: `${habitId}_${date}`, habitId, date, value, isGraceDay: false, createdAt: `${date}T08:00:00Z` };
 }
 
+function freezeLog(habitId: string, date: string): Log {
+  return { id: `${habitId}_${date}`, habitId, date, value: false, isGraceDay: false, isFreeze: true, createdAt: `${date}T08:00:00Z` };
+}
+
 describe("correlationInsight", () => {
   it("returns a gentle not-enough-data note below the overlap threshold", () => {
     const hA = habit({ id: "hA", name: "Meditate" });
@@ -231,6 +235,16 @@ describe("streakRisk", () => {
     ];
     expect(streakRisk([solid], logs, "2026-07-16")).toBeNull();
   });
+
+  it("does not count a freeze-protected day as a miss", () => {
+    const h = habit({ id: "hFreeze", name: "Stretch", createdAt: "2026-07-01" });
+    const logs: Log[] = [
+      freezeLog("hFreeze", "2026-07-14"),
+      boolLog("hFreeze", "2026-07-15", true),
+      boolLog("hFreeze", "2026-07-16", true),
+    ];
+    expect(streakRisk([h], logs, "2026-07-16")).toBeNull();
+  });
 });
 
 describe("stackingSuggestion", () => {
@@ -286,5 +300,18 @@ describe("monthlyRecap", () => {
     expect(recap.bestStreak).toBeGreaterThanOrEqual(2);
     expect(recap.completionPct).toBeGreaterThan(0);
     expect(recap.completionPct).toBeLessThanOrEqual(100);
+  });
+
+  it("counts a freeze-protected day as complete", () => {
+    const h = habit({ id: "h1", name: "Read", createdAt: "2026-07-01" });
+    const logs: Log[] = [
+      boolLog("h1", "2026-07-01", true),
+      freezeLog("h1", "2026-07-02"),
+      boolLog("h1", "2026-07-03", true),
+    ];
+    const recap = monthlyRecap([h], logs, "2026-07");
+    expect(recap.totalCompletions).toBe(3);
+    expect(recap.bestStreak).toBeGreaterThanOrEqual(3);
+    expect(recap.completionPct).toBeGreaterThan(0);
   });
 });
