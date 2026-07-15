@@ -5,9 +5,10 @@ rejected). Front-end-first prototype; auth stubbed; Supabase wired later behind 
 
 **Branch:** `main` is now the active baseline — the redesign was promoted onto it (the old
 glassmorphism build is gone from `main`; `feat/redesign` remains only as history).
-**Status:** entire page surface built. 96 tests passing, clean production build.
+**Status:** entire page surface built + streak-freeze, advanced habit management, and fresh-quotes
+(Supabase top-up) shipped. 115 tests passing, clean production build.
 
-_Last updated: 2026-07-14._
+_Last updated: 2026-07-15._
 
 ---
 
@@ -53,25 +54,41 @@ _Last updated: 2026-07-14._
   attribution → portfolio.ahmxd.net. Verified legible on both themes.
 - **Loader** (≤2s glitch intro → mirrored Я, skippable, reduced-motion fallback) + on-brand **404**.
 
+### Streak-freeze, advanced habit management, fresh quotes _(2026-07-15)_
+- **Streak-freeze** — per-habit **earned** freeze (1 per 7 completed scheduled days, bank max 2),
+  **ask-first** spend on Today that bridges a single isolated miss; separate from grace days.
+  `isFreeze` bridges a gap in `computeStreak` and is honored in insights, stats, CSV export, pet.
+- **Advanced habit management** — habit **detail drawer** (Overview mini-heatmap + streak + freeze
+  bank / Edit / **History back-date editor for the last 7 days**), **drag + keyboard reorder**
+  (`Habit.order`), retired the stale `/habits/[id]` route.
+- **Quotes** — verified pool grown 12 → **58** (every one a checkable primary source), date-rotation
+  now draws bundled ∪ remote, and a **Supabase** top-up (`public.quotes`, RLS select-only) merges
+  fresh verified quotes every 14 days — **degrades to the bundled pool until Supabase is
+  provisioned** (schema `supabase/quotes.sql` + `scripts/seed-quotes.ts` ready to run).
+- User-facing **`docs/features/how-it-works.md`** + a landing **"How it works"** strip under the hero.
+
 ### Domain / tests
-- 5 habit types + everyNDays/monthly schedules in the engine. 96 tests (streaks, insights, stats,
-  quotes, emoji search, components).
+- 5 habit types + everyNDays/monthly schedules + freeze/order/back-date engines. 115 tests (streaks,
+  freezes, insights, stats, quotes, habit order, back-date, emoji search, components).
 
 ---
 
 ## ⬜ Left to do
 
-1. **Streak-freeze mechanic** — Settings toggle exists; still need the engine logic (earn 1 per 7
-   perfect days, bank max 2, auto-apply to bridge a single miss).
-2. **Advanced habit management** — drag-to-reorder; per-habit **detail view** (own heatmap, streak
-   history, **log-editor to fix check-ins up to 7 days back**); inline edit.
-3. **Quotes** — expand from ~12 to **150–300** with verified primary sources; honor the Settings
-   traditions filter. (Authenticity is a hard requirement.)
-4. **Favicon** = mirrored Я (still the default Next.js `favicon.ico`); focused **a11y audit**
-   (keyboard, AA contrast, chart aria + table fallbacks, drawer focus traps). _Crest seal: done._
-5. **3D pet asset** — awaiting a **Spline scene URL or rigged `.glb`** (states
+1. **Provision Supabase for quotes** — create the project, run `supabase/quotes.sql`, set
+   `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` (+ `SUPABASE_SERVICE_ROLE_KEY` for
+   seeding), then `npx tsx scripts/seed-quotes.ts`. Needs the Supabase connector authorized
+   (interactive session). Until then the app runs on the 58 bundled quotes. Grow the pool toward
+   150–300 over time via the top-up.
+2. **Habit Edit tab depth** — the drawer Edit tab preserves but can't yet CHANGE
+   strictness / grace-days-per-week / category (HabitForm has no true edit mode). Add real edit-mode
+   support so those forgiveness knobs are editable.
+3. **Favicon** = mirrored Я (still the default Next.js `favicon.ico`); focused **a11y audit**
+   (keyboard, AA contrast, chart aria + table fallbacks, drawer focus traps; add
+   `role="tabpanel"`/`aria-controls` to the habit-detail tabs). _Crest seal: done._
+4. **3D pet asset** — awaiting a **Spline scene URL or rigged `.glb`** (states
    `idle/eat/happy/sleepy/evolve`) to replace the placeholder in `NixCreature` + the landing hero.
-6. **Backend (Phase 2)** — Supabase auth (OAuth) + Postgres + RLS behind the existing
+5. **Backend (Phase 2)** — Supabase auth (OAuth) + Postgres + RLS behind the existing
    `HabitRepository`; real notifications delivery; import-merge.
 
 ---
