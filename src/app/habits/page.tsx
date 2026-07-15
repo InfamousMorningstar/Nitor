@@ -1,14 +1,15 @@
 "use client";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppFrame } from "@/components/app/AppFrame";
 import { HabitDrawer } from "@/components/habits/HabitDrawer";
 import { HabitForm, type HabitFormInitial } from "@/components/habits/HabitForm";
+import { HabitDetail } from "@/components/habits/HabitDetail";
 import { FlameIcon, scheduleLabel } from "@/components/today/HabitRow";
 import { useHabits } from "@/state/useHabits";
 import { useRepository } from "@/state/RepositoryProvider";
 import { computeStreak } from "@/domain/streaks";
 import { today } from "@/domain/dates";
+import { sortHabits, assignInitialOrder, reorder } from "@/domain/habitOrder";
 import { HABIT_TEMPLATES, type HabitTemplate } from "@/domain/habitTemplates";
 import type { Habit, HabitType } from "@/domain/types";
 
@@ -24,19 +25,37 @@ const TYPE_TAG: Record<HabitType, string> = {
   quit: "quit",
 };
 
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
 export default function HabitsPage() {
-  const { habits, logs, refresh } = useHabits();
+  const { habits, logs, loading, log, refresh } = useHabits();
   const repo = useRepository();
+  const reducedMotion = usePrefersReducedMotion();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerInitial, setDrawerInitial] = useState<HabitFormInitial | undefined>(undefined);
+  const [detailHabitId, setDetailHabitId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const now = today();
 
+  const sortedHabits = useMemo(() => sortHabits(habits), [habits]);
+
   const rows = useMemo(
     () =>
-      habits
+      sortedHabits
         .filter((h) => !h.archived)
         .map((h) => ({
           habit: h,
@@ -46,15 +65,47 @@ export default function HabitsPage() {
             now
           ),
         })),
-    [habits, logs, now]
+    [sortedHabits, logs, now]
   );
 
+  const detailHabit = useMemo(
+    () => (detailHabitId ? habits.find((h) => h.id === detailHabitId) : undefined),
+    [habits, detailHabitId]
+  );
+  const detailLogs = useMemo(
+    () => (detailHabit ? logs.filter((l) => l.habitId === detailHabit.id) : []),
+    [logs, detailHabit]
+  );
+
+  // One-time migration: if any habit predates the manual `order` field,
+  // assign initial order from the current sort and persist it. Guarded so
+  // this runs once per session, not on every habits refresh.
+  const migratedRef = useRef(false);
+  useEffect(() => {
+    if (loading || migratedRef.current) return;
+    migratedRef.current = true;
+    if (habits.length === 0) return;
+    const missingOrder = habits.some((h) => h.order === undefined);
+    if (!missingOrder) return;
+    const assigned = assignInitialOrder(habits);
+    const changed = assigned.filter((h) => {
+      const before = habits.find((o) => o.id === h.id);
+      return before?.order !== h.order;
+    });
+    void (async () => {
+      await Promise.all(changed.map((h) => repo.upsertHabit(h)));
+      await refresh();
+    })();
+  }, [loading, habits, repo, refresh]);
+
   function openNewDrawer() {
+    setDetailHabitId(null);
     setDrawerInitial(undefined);
     setDrawerOpen(true);
   }
 
   function openFromTemplate(t: HabitTemplate) {
+    setDetailHabitId(null);
     setDrawerInitial({
       name: t.name,
       emoji: t.emoji,
@@ -67,9 +118,19 @@ export default function HabitsPage() {
     setDrawerOpen(true);
   }
 
+  function openDetail(habit: Habit) {
+    setDrawerOpen(false);
+    setDetailHabitId(habit.id);
+  }
+
   async function addHabit(h: Habit) {
     await repo.upsertHabit(h);
     setDrawerOpen(false);
+    await refresh();
+  }
+
+  async function saveHabit(h: Habit) {
+    await repo.upsertHabit(h);
     await refresh();
   }
 
@@ -85,6 +146,54 @@ export default function HabitsPage() {
     setConfirmingId(null);
     setConfirmText("");
     await refresh();
+  }
+
+  async function persistReorder(fromId: string, toId: string) {
+    if (fromId === toId) return;
+    const next = reorder(habits, fromId, toId);
+    const changed = next.filter((h) => {
+      const before = habits.find((o) => o.id === h.id);
+      return before?.order !== h.order;
+    });
+    if (changed.length === 0) return;
+    await Promise.all(changed.map((h) => repo.upsertHabit(h)));
+    await refresh();
+  }
+
+  function handleDragStart(e: React.DragEvent, id: string) {
+    setDraggingId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+  }
+
+  function handleDragOver(e: React.DragEvent, id: string) {
+    if (!draggingId || draggingId === id) return;
+    e.preventDefault();
+    setDragOverId(id);
+  }
+
+  function handleDrop(e: React.DragEvent, id: string) {
+    e.preventDefault();
+    const fromId = draggingId;
+    setDraggingId(null);
+    setDragOverId(null);
+    if (fromId && fromId !== id) void persistReorder(fromId, id);
+  }
+
+  function handleDragEnd() {
+    setDraggingId(null);
+    setDragOverId(null);
+  }
+
+  function handleReorderKeyDown(e: React.KeyboardEvent<HTMLLIElement>, habitId: string) {
+    if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+    e.preventDefault();
+    const visible = rows.map((r) => r.habit);
+    const idx = visible.findIndex((h) => h.id === habitId);
+    if (idx < 0) return;
+    const neighborIdx = e.key === "ArrowUp" ? idx - 1 : idx + 1;
+    if (neighborIdx < 0 || neighborIdx >= visible.length) return;
+    void persistReorder(habitId, visible[neighborIdx].id);
   }
 
   return (
@@ -136,12 +245,34 @@ export default function HabitsPage() {
             return (
               <li
                 key={habit.id}
-                className="flex items-center gap-3 overflow-hidden rounded-xl border pr-3 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))]"
+                onDragOver={(e) => handleDragOver(e, habit.id)}
+                onDrop={(e) => handleDrop(e, habit.id)}
+                onKeyDown={(e) => handleReorderKeyDown(e, habit.id)}
+                className={
+                  "flex items-center gap-1 overflow-hidden rounded-xl border pr-3 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))] " +
+                  (!reducedMotion ? "transition-[opacity,box-shadow] duration-[var(--dur-micro)] " : "") +
+                  (draggingId === habit.id ? "opacity-50 " : "") +
+                  (dragOverId === habit.id && draggingId !== habit.id
+                    ? "[box-shadow:inset_0_2px_0_0_rgb(var(--accent)),inset_0_-2px_0_0_rgb(var(--accent))] "
+                    : "")
+                }
                 style={{ borderLeft: `3px solid ${habit.color}` }}
               >
-                <Link
-                  href={`/habits/${habit.id}`}
-                  className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+                <button
+                  type="button"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, habit.id)}
+                  onDragEnd={handleDragEnd}
+                  aria-label={`Reorder ${habit.name}. Drag, or focus this row and press Alt+Up or Alt+Down.`}
+                  className="ml-3 shrink-0 cursor-grab select-none rounded px-1 py-3 leading-none [color:rgb(var(--text-mute))] active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+                >
+                  <span aria-hidden="true">⠿</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openDetail(habit)}
+                  className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
                 >
                   <span
                     className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg [background:rgb(var(--surface-2))]"
@@ -165,7 +296,7 @@ export default function HabitsPage() {
                       </span>
                     </div>
                   </div>
-                </Link>
+                </button>
 
                 {confirming ? (
                   <div className="flex shrink-0 items-center gap-2">
@@ -225,6 +356,16 @@ export default function HabitsPage() {
 
       <HabitDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="New habit">
         <HabitForm onSubmit={addHabit} initial={drawerInitial} />
+      </HabitDrawer>
+
+      <HabitDrawer
+        open={detailHabitId !== null}
+        onClose={() => setDetailHabitId(null)}
+        title={detailHabit?.name ?? "Habit"}
+      >
+        {detailHabit && (
+          <HabitDetail habit={detailHabit} logs={detailLogs} onLog={log} onSaved={saveHabit} />
+        )}
       </HabitDrawer>
     </AppFrame>
   );
