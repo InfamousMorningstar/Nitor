@@ -32,9 +32,14 @@ export function HowItWorks() {
   return (
     <section className="border-t [border-color:rgb(var(--hairline)/0.08)] py-20 md:py-24">
       <div className="mx-auto w-full max-w-[1200px] px-6 md:px-10">
-        <span className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]">
-          How it works
-        </span>
+        <a
+          href="https://github.com/InfamousMorningstar/Nitor/blob/main/docs/features/how-it-works.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.08em] [color:rgb(var(--text-dim))] transition-colors duration-[var(--dur-micro)] hover:[color:rgb(var(--accent))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+        >
+          How it works &rarr;
+        </a>
 
         <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
           {CARDS.map((c) => (
