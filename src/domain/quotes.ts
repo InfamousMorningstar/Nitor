@@ -113,8 +113,35 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
+/** Normalize text for deduplication: trim, collapse whitespace, lowercase. */
+function normalize(t: string): string {
+  return t.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** Module-level store for remote quotes. */
+let remote: Quote[] = [];
+
+/** Sets the remote quotes, filtering out any without a non-empty source. */
+export function setRemoteQuotes(quotes: Quote[]): void {
+  remote = quotes.filter((q) => q.source && q.source.trim().length > 0);
+}
+
+/** Returns bundled QUOTES ∪ remote, deduped by normalized text; bundled wins on collision. */
+export function allQuotes(): Quote[] {
+  const seen = new Set(QUOTES.map((q) => normalize(q.text)));
+  const merged = [...QUOTES];
+  for (const q of remote) {
+    const key = normalize(q.text);
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push({ ...q, text: q.text.trim() });
+    }
+  }
+  return merged;
+}
+
 /** Returns the same quote for the same date string, every time. */
 export function quoteOfDay(date: string): Quote {
-  const index = hashString(date) % QUOTES.length;
-  return QUOTES[index];
+  const pool = allQuotes();
+  return pool[hashString(date) % pool.length];
 }
