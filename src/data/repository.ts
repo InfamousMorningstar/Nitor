@@ -6,6 +6,7 @@ export interface LogInput {
   value: number | boolean;
   note?: string;
   isGraceDay?: boolean;
+  isFreeze?: boolean;
 }
 
 export interface HabitRepository {

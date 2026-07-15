@@ -1,7 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { quoteOfDay, QUOTES } from "@/domain/quotes";
+import { describe, it, expect, beforeEach } from "vitest";
+import { quoteOfDay, QUOTES, setRemoteQuotes, allQuotes } from "@/domain/quotes";
 
 describe("quoteOfDay", () => {
+  beforeEach(() => {
+    setRemoteQuotes([]);
+  });
+
   it("is deterministic for a given date", () => {
     const a = quoteOfDay("2026-07-13");
     const b = quoteOfDay("2026-07-13");
@@ -20,5 +24,27 @@ describe("quoteOfDay", () => {
       )
     );
     expect(seen.size).toBeGreaterThan(1);
+  });
+});
+
+describe("setRemoteQuotes & allQuotes", () => {
+  beforeEach(() => {
+    setRemoteQuotes([]);
+  });
+
+  it("merges validated remote quotes and dedupes by text", () => {
+    setRemoteQuotes([
+      { text: "  It is not that we have a short time to live, but that we waste a lot of it. ", author: "Seneca", source: "On the Shortness of Life, 1", tradition: "stoic", themes: [] }, // dup of bundled
+      { text: "New verified line.", author: "X", source: "Real Source (1999)", tradition: "wisdom", themes: [] },
+    ]);
+    const all = allQuotes();
+    const dupCount = all.filter((q) => q.text.includes("waste a lot of it")).length;
+    expect(dupCount).toBe(1);
+    expect(all.some((q) => q.text === "New verified line.")).toBe(true);
+  });
+
+  it("rejects remote quotes without a source", () => {
+    setRemoteQuotes([{ text: "No source", author: "Y", source: "  ", tradition: "wisdom", themes: [] }]);
+    expect(allQuotes().some((q) => q.text === "No source")).toBe(false);
   });
 });

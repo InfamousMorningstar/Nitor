@@ -33,13 +33,15 @@ describe("logsToCsv", () => {
     const logs: Log[] = [
       { id: "l1", habitId: "h1", date: "2026-06-01", value: true, isGraceDay: false, createdAt: "2026-06-01T08:00:00Z" },
       { id: "l2", habitId: "h1", date: "2026-06-02", value: false, isGraceDay: true, createdAt: "2026-06-02T08:00:00Z" },
+      { id: "l3", habitId: "h1", date: "2026-06-03", value: false, isGraceDay: false, isFreeze: true, createdAt: "2026-06-03T08:00:00Z" },
     ];
     const csv = logsToCsv(habits, logs);
     const lines = csv.split("\n");
-    expect(lines[0]).toBe("habitId,habitName,date,value,isGraceDay");
-    expect(lines[1]).toBe("h1,Read,2026-06-01,true,false");
-    expect(lines[2]).toBe("h1,Read,2026-06-02,false,true");
-    expect(lines).toHaveLength(3);
+    expect(lines[0]).toBe("habitId,habitName,date,value,isGraceDay,isFreeze");
+    expect(lines[1]).toBe("h1,Read,2026-06-01,true,false,false");
+    expect(lines[2]).toBe("h1,Read,2026-06-02,false,true,false");
+    expect(lines[3]).toBe("h1,Read,2026-06-03,false,false,true");
+    expect(lines).toHaveLength(4);
   });
 
   it("falls back to an empty name for an unknown habit id", () => {
@@ -47,6 +49,6 @@ describe("logsToCsv", () => {
       { id: "l1", habitId: "ghost", date: "2026-06-01", value: 3, isGraceDay: false, createdAt: "2026-06-01T08:00:00Z" },
     ];
     const csv = logsToCsv(habits, logs);
-    expect(csv.split("\n")[1]).toBe("ghost,,2026-06-01,3,false");
+    expect(csv.split("\n")[1]).toBe("ghost,,2026-06-01,3,false,false");
   });
 });

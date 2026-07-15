@@ -45,6 +45,6 @@ CLAUDE.md
 .playwright-mcp/
 nitor-*.png
 redesign-*.png
-docs/
+docs/*
 !docs/features/
 .superpowers/

@@ -196,3 +196,18 @@ describe("computeStreak for quantified daily habit", () => {
     expect(s.longest).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("computeStreak with isFreeze", () => {
+  it("treats an isFreeze log like a completed day so the streak survives one miss", () => {
+    const h = habit({ schedule: { kind: "daily" }, createdAt: "2026-01-01" });
+    // complete Jan1-3, "miss" Jan4 but protect it with a freeze, complete Jan5
+    const logs: Log[] = [
+      log("2026-01-01", true),
+      log("2026-01-02", true),
+      log("2026-01-03", true),
+      { id: "f", habitId: "h1", date: "2026-01-04", value: false, isGraceDay: false, isFreeze: true, createdAt: "" },
+      log("2026-01-05", true),
+    ];
+    expect(computeStreak(h, logs, "2026-01-05").current).toBe(5);
+  });
+});

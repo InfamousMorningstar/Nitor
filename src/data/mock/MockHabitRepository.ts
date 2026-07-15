@@ -34,6 +34,7 @@ export class MockHabitRepository implements HabitRepository {
       value: input.value,
       note: input.note,
       isGraceDay: input.isGraceDay ?? false,
+      isFreeze: input.isFreeze ?? false,
       createdAt: new Date().toISOString(),
     };
     if (idx >= 0) this.logs[idx] = log;

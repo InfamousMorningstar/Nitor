@@ -32,6 +32,8 @@ export interface Habit {
   unit?: string;
   /** YYYY-MM-DD; defaults to createdAt when absent */
   startDate?: string;
+  /** manual sort position; lower = higher in the list */
+  order?: number;
 }
 
 export interface Log {
@@ -42,6 +44,8 @@ export interface Log {
   value: number | boolean;
   note?: string;
   isGraceDay: boolean;
+  /** true when this day was rescued by spending an earned streak-freeze */
+  isFreeze?: boolean;
   createdAt: string; // ISO
 }
 

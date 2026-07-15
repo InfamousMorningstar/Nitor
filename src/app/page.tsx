@@ -1,4 +1,5 @@
 import { Hero } from "@/components/marketing/Hero";
+import { HowItWorks } from "@/components/marketing/HowItWorks";
 import { ScrollStory } from "@/components/marketing/ScrollStory";
 import { WhyNitor } from "@/components/marketing/WhyNitor";
 import { KineticFooter } from "@/components/marketing/KineticFooter";
@@ -14,6 +15,7 @@ export default function Home() {
   return (
     <main>
       <Hero />
+      <HowItWorks />
       <ScrollStory />
       <WhyNitor />
       <KineticFooter />

@@ -203,7 +203,7 @@ export function streakRisk(habits: Habit[], logs: Log[], asOf: string): StreakRi
       if (diffDays(cursor, h.createdAt) < 0) break;
       if (isScheduledOn(h, cursor)) {
         const l = byDate.get(cursor);
-        occurrences.push({ date: cursor, complete: isComplete(h, l) || Boolean(l?.isGraceDay) });
+        occurrences.push({ date: cursor, complete: isComplete(h, l) || Boolean(l?.isGraceDay) || Boolean(l?.isFreeze) });
       }
       cursor = addDays(cursor, -1);
     }
@@ -305,7 +305,7 @@ function longestRunInRange(habit: Habit, logs: Log[], from: string, to: string):
     if (diffDays(d, habit.createdAt) < 0) continue;
     if (!isScheduledOn(habit, d)) continue;
     const l = byDate.get(d);
-    if (isComplete(habit, l) || l?.isGraceDay) {
+    if (isComplete(habit, l) || l?.isGraceDay || l?.isFreeze) {
       run++;
       longest = Math.max(longest, run);
     } else {
@@ -351,7 +351,7 @@ export function monthlyRecap(habits: Habit[], logs: Log[], month: string): Month
       if (!isScheduledOn(h, d)) continue;
       scheduled++;
       const l = byDate.get(d);
-      if (isComplete(h, l) || l?.isGraceDay) {
+      if (isComplete(h, l) || l?.isGraceDay || l?.isFreeze) {
         completed++;
         habitCompletions++;
       }
