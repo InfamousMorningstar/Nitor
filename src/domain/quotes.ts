@@ -428,13 +428,6 @@ export const QUOTES: Quote[] = [
     tradition: "craft",
     themes: ["craft", "discipline"],
   },
-  {
-    text: "Easy reading is damn hard writing.",
-    author: "Maya Angelou",
-    source: "\"The Art of Fiction No. 119,\" interview with George Plimpton, The Paris Review (Fall 1990)",
-    tradition: "craft",
-    themes: ["writing", "craft"],
-  },
 ];
 
 /** Deterministic index derived from a YYYY-MM-DD date string. */
