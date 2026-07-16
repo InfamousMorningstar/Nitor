@@ -29,6 +29,14 @@ export interface TurnstileHandle {
 
 interface TurnstileProps {
   onToken: (token: string | null) => void;
+  /**
+   * Fired when the script fails to load (ad blocker, corporate network) or
+   * the widget reports an unrecoverable error. Consumers MUST surface this
+   * to the user — e.g. "Verification could not load — disable your ad
+   * blocker or try another network" — because a null token alone cannot
+   * distinguish "not solved yet" from "cannot ever be solved".
+   */
+  onError?: () => void;
 }
 
 /**
@@ -38,7 +46,7 @@ interface TurnstileProps {
  * Supabase dashboard, never in this app.
  */
 export const Turnstile = forwardRef<TurnstileHandle, TurnstileProps>(
-  function Turnstile({ onToken }, ref) {
+  function Turnstile({ onToken, onError }, ref) {
     const holder = useRef<HTMLDivElement>(null);
     const widgetId = useRef<string | null>(null);
 
@@ -61,33 +69,59 @@ export const Turnstile = forwardRef<TurnstileHandle, TurnstileProps>(
           sitekey: sitekey!,
           theme: "auto",
           callback: (token) => onToken(token),
-          "error-callback": () => onToken(null),
+          "error-callback": () => {
+            onToken(null);
+            onError?.();
+          },
           "expired-callback": () => onToken(null),
         });
       }
 
+      // Cloudflare tracks widgets in its own registry, not the DOM. The auth
+      // pages are separate routes, so client-side navigation between them
+      // mounts and unmounts this component repeatedly — without remove(),
+      // every cycle strands a widget pointing at a detached node for the life
+      // of the SPA session. Guarded: nothing to do if the script never loaded
+      // or a widget was never rendered.
+      function removeWidget() {
+        if (widgetId.current && window.turnstile) {
+          window.turnstile.remove(widgetId.current);
+        }
+        widgetId.current = null;
+      }
+
+      // A blocked script (ad blocker, corporate network) would otherwise be
+      // indistinguishable from the deliberate no-site-key no-op: an empty div
+      // and a form that rejects every submit — a permanent, silent lockout.
+      function handleScriptError() {
+        onToken(null);
+        onError?.();
+      }
+
       if (window.turnstile) {
         render();
-        return;
+        return removeWidget;
       }
 
       const existing = document.querySelector<HTMLScriptElement>(
         `script[src="${SCRIPT_SRC}"]`,
       );
-      if (existing) {
-        existing.addEventListener("load", render);
-        return () => existing.removeEventListener("load", render);
+      const script = existing ?? document.createElement("script");
+      if (!existing) {
+        script.src = SCRIPT_SRC;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
       }
-
-      const script = document.createElement("script");
-      script.src = SCRIPT_SRC;
-      script.async = true;
-      script.defer = true;
       script.addEventListener("load", render);
-      document.head.appendChild(script);
+      script.addEventListener("error", handleScriptError);
 
-      return () => script.removeEventListener("load", render);
-    }, [onToken]);
+      return () => {
+        script.removeEventListener("load", render);
+        script.removeEventListener("error", handleScriptError);
+        removeWidget();
+      };
+    }, [onToken, onError]);
 
     return <div ref={holder} className="flex justify-center" />;
   },
