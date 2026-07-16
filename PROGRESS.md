@@ -3,12 +3,11 @@
 Redesign of Nitor into a matte, editorial, premium habit tracker (the glassmorphism build was
 rejected). Front-end-first prototype; auth stubbed; Supabase wired later behind `HabitRepository`.
 
-**Branch:** `main` is now the active baseline — the redesign was promoted onto it (the old
-glassmorphism build is gone from `main`; `feat/redesign` remains only as history).
-**Status:** entire page surface built + streak-freeze, advanced habit management, and fresh-quotes
-(Supabase top-up) shipped. 115 tests passing, clean production build.
+**Branch:** `main` is the baseline. Active work is on `feat/phase2-identity` (pushed, not merged).
+**Status:** front-end prototype ~90% and feature-complete. Phase 2 (the backend) is underway —
+slice 1 of 5 is 7/19 tasks in. 137 tests passing, clean production build.
 
-_Last updated: 2026-07-15._
+_Last updated: 2026-07-16._
 
 ---
 
@@ -73,23 +72,66 @@ _Last updated: 2026-07-15._
 
 ---
 
-## ⬜ Left to do
+## 🚧 In progress — Phase 2, Slice 1: Identity & Session
 
-1. **Provision Supabase for quotes** — create the project, run `supabase/quotes.sql`, set
-   `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` (+ `SUPABASE_SERVICE_ROLE_KEY` for
-   seeding), then `npx tsx scripts/seed-quotes.ts`. Needs the Supabase connector authorized
-   (interactive session). Until then the app runs on the 58 bundled quotes. Grow the pool toward
-   150–300 over time via the top-up.
+Branch `feat/phase2-identity` (pushed, 137 tests). Spec + 19-task plan:
+`docs/superpowers/specs/2026-07-16-phase2-identity-session-design.md` ·
+`docs/superpowers/plans/2026-07-16-phase2-identity-session.md`
+
+Phase 2 is cut into five slices; slice 1 comes first because RLS policies need `auth.uid()` to
+exist. **Slice 1 must not deploy on its own** — auth would be real over fake in-memory data, and
+the beta notice's "your data is safe" is untrue until slice 2.
+
+**Done (reviewed):** deps + env scaffolding · `profiles.sql` (table, RLS, `security definer`
+trigger) · `safeNext` open-redirect guard · password minimum 12 (server parity) · Supabase
+browser/server client factories · `src/proxy.ts` route guard + session refresh · Turnstile widget.
+
+**Left:**
+
+1. **Provision Supabase** — create the project, enable **asymmetric JWT signing keys**, create
+   **publishable + secret** keys (not legacy `anon`/`service_role`), run `supabase/profiles.sql`
+   then `supabase/quotes.sql`, then `npx tsx scripts/seed-quotes.ts`. This blocks every runtime
+   gate: advisors, the negative RLS test, the live redirect check, end-to-end, and the quote
+   top-up are all still unrun.
+2. **Task 17 before trusting quotes** — `src/data/quotes/remote.ts` still reads `ANON_KEY` and
+   sends `Authorization: Bearer`, which publishable keys reject. It fails *closed* to the bundled
+   58 and looks perfectly healthy while broken.
+3. **Tasks 8, 10–16** — auth route handlers; real Google OAuth (Apple + GitHub stubs deleted);
+   real signup / login / reset (the fake magic-link flow gets deleted); session context +
+   sign-out; real user in sidebar; onboarding gating.
+4. **Task 18 — dashboard config.** SMTP half is **blocked until a domain is registered** (DNS
+   verification). Until then the built-in SMTP sends a few emails/hour: fine for dev, not shippable.
+5. **Task 19** — verification sweep.
+
+## ⬜ Left to do — after slice 1
+
+1. **Phase 2 slices 2–5**, each needing its own brainstorm → spec → plan: **persistence & RLS**
+   (`user_id` on the domain, schema, `SupabaseHabitRepository` behind the existing
+   `HabitRepository` seam — the dominant chunk); settings/pet sync (optional); notifications
+   delivery; import-merge.
 2. **Habit Edit tab depth** — the drawer Edit tab preserves but can't yet CHANGE
-   strictness / grace-days-per-week / category (HabitForm has no true edit mode). Add real edit-mode
-   support so those forgiveness knobs are editable.
+   strictness / grace-days-per-week / category (HabitForm has no true edit mode).
 3. **Favicon** = mirrored Я (still the default Next.js `favicon.ico`); focused **a11y audit**
    (keyboard, AA contrast, chart aria + table fallbacks, drawer focus traps; add
    `role="tabpanel"`/`aria-controls` to the habit-detail tabs). _Crest seal: done._
 4. **3D pet asset** — awaiting a **Spline scene URL or rigged `.glb`** (states
    `idle/eat/happy/sleepy/evolve`) to replace the placeholder in `NixCreature` + the landing hero.
-5. **Backend (Phase 2)** — Supabase auth (OAuth) + Postgres + RLS behind the existing
-   `HabitRepository`; real notifications delivery; import-merge.
+
+## ⚠️ Gotchas worth not relearning
+
+Five defects were caught on the slice-1 branch before shipping, and **every one was invisible to
+`tsc`, lint, and the test suite**:
+
+- **`src/proxy.ts`, not the repo root.** Next resolves the proxy by scanning
+  `path.join(appDir, '..')` — which is `src/` here. A repo-root `proxy.ts` builds clean, warns
+  nothing, and the guard never runs. The gate that catches it:
+  `npm run build | grep Proxy` must print `ƒ Proxy (Middleware)`.
+- **`getClaims()`, never `getSession()`** in server code.
+- **`setAll` takes `(cookies, headers)`** in `@supabase/ssr` 0.12.3, and the proxy is the *only*
+  place those cache headers can land — otherwise a CDN can serve one user's session to another.
+- **`safeNext`'s output must reach the redirect verbatim** — never `decodeURIComponent` it.
+- **Turnstile callbacks must stay behind refs** — inline arrows tore the widget down on every
+  keystroke and discarded the solved token.
 
 ---
 
