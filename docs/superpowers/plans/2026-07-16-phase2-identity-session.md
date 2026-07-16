@@ -903,6 +903,25 @@ git commit -m "feat(auth): add oauth callback and email confirm routes"
 
 ## Task 9: Turnstile widget (S11)
 
+> **SHIPPED AND SUPERSEDED — the code block below is the original draft and contains two
+> defects. `src/components/auth/Turnstile.tsx` in the repo is authoritative; read that, not this.**
+>
+> The draft (a) never called `window.turnstile.remove()` on unmount, stranding a widget in
+> Cloudflare's registry on every client-side navigation between auth routes, and (b) had no
+> `error` listener on the injected script, so a blocked `challenges.cloudflare.com` (ad blocker,
+> corporate network) produced an empty div and a form that rejects every submit — a permanent,
+> silent lockout indistinguishable from the no-site-key no-op.
+>
+> The shipped version adds an optional `onError?: () => void` (consumers MUST surface it) and
+> keeps `onToken`/`onError` in refs with a `[]`-dependency lifecycle effect. That last part is
+> load-bearing: with the callbacks in the dependency array, an inline arrow prop tore the widget
+> down and rebuilt it on every parent render — measured at 4 renders / 3 removes across 3
+> keystrokes — discarding the solved token and making submission impossible. `tests/components/
+> auth/Turnstile.test.tsx` pins all of it.
+>
+> **Consumers must pass stable callbacks or accept that the refs absorb the churn — and must
+> render `onError`'s message.** See Tasks 11-13.
+
 **Files:**
 - Create: `src/components/auth/Turnstile.tsx`
 
@@ -1116,7 +1135,7 @@ git commit -m "feat(auth): wire real google oauth, drop apple and github stubs"
 In `src/app/(auth)/signup/page.tsx`, add imports:
 
 ```tsx
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
 ```
@@ -1129,6 +1148,17 @@ const [serverError, setServerError] = useState<string | undefined>();
 const [sent, setSent] = useState(false);
 const [busy, setBusy] = useState(false);
 const turnstile = useRef<TurnstileHandle>(null);
+
+// Turnstile's onError means the challenge can never be solved (script blocked
+// by an ad blocker or the network), which a null token cannot express. Without
+// surfacing it the user sees a form that rejects every submit and no visible
+// challenge. Must be a STABLE reference: pass a useCallback (or a plain state
+// setter), never an inline arrow.
+const handleCaptchaUnavailable = useCallback(() => {
+  setServerError(
+    "Verification could not load. Disable your ad blocker or try another network.",
+  );
+}, []);
 ```
 
 Replace the whole stubbed `handleSubmit` (currently `router.push("/onboarding")`) with:
@@ -1199,7 +1229,11 @@ if (sent) {
 Between the password field's closing `</div>` and the submit button:
 
 ```tsx
-<Turnstile ref={turnstile} onToken={setCaptchaToken} />
+<Turnstile
+  ref={turnstile}
+  onToken={setCaptchaToken}
+  onError={handleCaptchaUnavailable}
+/>
 <FieldError message={serverError} />
 ```
 
@@ -1252,7 +1286,7 @@ Delete, in `src/app/(auth)/login/page.tsx`:
 Add imports:
 
 ```tsx
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
@@ -1267,6 +1301,17 @@ const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 const [serverError, setServerError] = useState<string | undefined>();
 const [busy, setBusy] = useState(false);
 const turnstile = useRef<TurnstileHandle>(null);
+
+// Turnstile's onError means the challenge can never be solved (script blocked
+// by an ad blocker or the network), which a null token cannot express. Without
+// surfacing it the user sees a form that rejects every submit and no visible
+// challenge. Must be a STABLE reference: pass a useCallback (or a plain state
+// setter), never an inline arrow.
+const handleCaptchaUnavailable = useCallback(() => {
+  setServerError(
+    "Verification could not load. Disable your ad blocker or try another network.",
+  );
+}, []);
 ```
 
 Replace the stubbed `handleSubmit`:
@@ -1309,7 +1354,11 @@ async function handleSubmit(e: React.FormEvent) {
 Between the password field's closing `</div>` and the submit button:
 
 ```tsx
-<Turnstile ref={turnstile} onToken={setCaptchaToken} />
+<Turnstile
+  ref={turnstile}
+  onToken={setCaptchaToken}
+  onError={handleCaptchaUnavailable}
+/>
 <FieldError message={serverError} />
 ```
 
@@ -1367,7 +1416,7 @@ git commit -m "feat(auth): real login with turnstile; remove fake magic-link flo
 In `src/app/(auth)/forgot-password/page.tsx`, add imports:
 
 ```tsx
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
 ```
@@ -1379,6 +1428,17 @@ const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 const [serverError, setServerError] = useState<string | undefined>();
 const [busy, setBusy] = useState(false);
 const turnstile = useRef<TurnstileHandle>(null);
+
+// Turnstile's onError means the challenge can never be solved (script blocked
+// by an ad blocker or the network), which a null token cannot express. Without
+// surfacing it the user sees a form that rejects every submit and no visible
+// challenge. Must be a STABLE reference: pass a useCallback (or a plain state
+// setter), never an inline arrow.
+const handleCaptchaUnavailable = useCallback(() => {
+  setServerError(
+    "Verification could not load. Disable your ad blocker or try another network.",
+  );
+}, []);
 ```
 
 Replace the stubbed `handleSubmit`:
@@ -1416,7 +1476,11 @@ async function handleSubmit(e: React.FormEvent) {
 Add before the submit button:
 
 ```tsx
-<Turnstile ref={turnstile} onToken={setCaptchaToken} />
+<Turnstile
+  ref={turnstile}
+  onToken={setCaptchaToken}
+  onError={handleCaptchaUnavailable}
+/>
 <FieldError message={serverError} />
 ```
 
