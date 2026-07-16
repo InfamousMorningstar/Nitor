@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * Refreshes the Supabase session cookies for a request and returns the
  * verified JWT claims.
  *
- * Named `session.ts`, deliberately NOT `proxy.ts`: the root `proxy.ts` is a
+ * Named `session.ts`, deliberately NOT `proxy.ts`: `src/proxy.ts` is a
  * Next.js file convention, and two same-named files at different layers
  * invites edits landing in the wrong one.
  */
@@ -48,7 +48,14 @@ export async function updateSession(request: NextRequest) {
   // S1: getClaims() validates the JWT signature against the project's
   // published public keys on every call. Never getSession() here — it reads
   // client-shared cookie storage and is not revalidated.
-  const { data } = await supabase.auth.getClaims();
+  const { data, error } = await supabase.auth.getClaims();
+
+  // Fail closed: an error yields null claims and the caller redirects to
+  // /login. Log it, though — a transient JWKS-fetch failure bouncing a valid
+  // user is otherwise invisible.
+  if (error) {
+    console.error("updateSession: getClaims() failed", error);
+  }
 
   return { response, claims: data?.claims ?? null };
 }
