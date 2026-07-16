@@ -116,9 +116,13 @@ create table public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "profiles_select_own" on public.profiles;
+
 create policy "profiles_select_own" on public.profiles
   for select to authenticated
   using ((select auth.uid()) = id);
+
+drop policy if exists "profiles_update_own" on public.profiles;
 
 create policy "profiles_update_own" on public.profiles
   for update to authenticated
@@ -130,6 +134,10 @@ Notes, each load-bearing:
 
 - **No insert or delete policy.** Insert is owned by the signup trigger below; delete cascades
   from `auth.users`. Deny-by-default means absent policies are already closed.
+- **`drop policy if exists` before each `create policy`.** `create policy` has no `if not
+  exists` form, so without this the file aborts on a re-run (42710) while the rest of it is
+  idempotent — meaning an edited function body would silently never be applied. The file is
+  applied by hand, so re-runs are likely.
 - **`to authenticated`** keeps the policy from being evaluated for anonymous requests at all.
 - **`(select auth.uid())`** rather than bare `auth.uid()` — the subselect is evaluated once per
   statement as an initPlan instead of once per row. This is the documented RLS performance

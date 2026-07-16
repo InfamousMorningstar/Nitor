@@ -20,10 +20,18 @@ alter table public.profiles enable row level security;
 --
 -- `(select auth.uid())` rather than bare `auth.uid()` so the planner
 -- evaluates it once per statement as an initPlan instead of once per row.
+--
+-- `create policy` has no `if not exists` form, so each policy is dropped
+-- first. Without this the whole file aborts on a re-run (42710) — and an
+-- edited function body below would then never be applied.
+
+drop policy if exists "profiles_select_own" on public.profiles;
 
 create policy "profiles_select_own" on public.profiles
   for select to authenticated
   using ((select auth.uid()) = id);
+
+drop policy if exists "profiles_update_own" on public.profiles;
 
 create policy "profiles_update_own" on public.profiles
   for update to authenticated
