@@ -310,8 +310,10 @@ Evidence required before merge — each produces observable output, not an asser
   this must be tested rather than assumed).
 - **V3** — Secret key absent from the repo: `git grep` for `sb_secret_` and the literal key
   returns nothing; `.env.local` confirmed ignored.
-- **V4** — No `middleware.ts` anywhere in the repo; `proxy.ts` exists and its guard demonstrably
-  runs (logged-out request to `/today` redirects before any app shell renders).
+- **V4** — No `middleware.ts` anywhere; the proxy exists at `src/proxy.ts`; **`npm run build`
+  prints `ƒ Proxy (Middleware)`** (Next lists it only when it detects the file — a misplaced proxy
+  builds clean and silently never runs); and the guard demonstrably runs (logged-out request to
+  `/today` redirects before any app shell renders).
 - **V5** — Unit tests: `?next=` validator rejects `//evil.com`, `https://evil.com`,
   `/\evil.com`, and accepts `/today`, `/habits`.
 - **V6** — Password parity: a new unit test covers `passwordError` (currently untested), and a

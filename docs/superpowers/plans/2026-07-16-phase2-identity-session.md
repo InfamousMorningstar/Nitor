@@ -1909,13 +1909,23 @@ npx tsc --noEmit && npx eslint . && npx vitest run && npm run build
 ```
 Expected: all clean; **131 tests** pass (115 existing + 8 redirect + 8 formKit).
 
-- [ ] **Step 2: V4 — the guard exists and runs**
+- [ ] **Step 2: V4 — the guard exists AND is actually wired in**
 
 ```bash
 find . -name "middleware.ts" -not -path "./node_modules/*"
-ls proxy.ts
+git ls-files "*proxy.ts"
+npm run build 2>&1 | grep "Proxy"
 ```
-Expected: nothing for the first; `proxy.ts` for the second. Then, logged out, visit `/today` → redirected to `/login?next=%2Ftoday` with no shell flash.
+Expected: nothing for the first; exactly `src/proxy.ts` for the second; **`ƒ Proxy (Middleware)`
+for the third**.
+
+The build check is the one that matters. Next lists Proxy in its route table only when it
+*detects* the file — and a proxy in the wrong place produces no error, no warning, and a
+successful build. Empirically confirmed on this repo: moving the file to the repo root makes this
+line vanish while `npm run build` still reports success. A passing tsc/lint/test suite tells you
+nothing about whether the guard is loaded.
+
+Then, logged out, visit `/today` → redirected to `/login?next=%2Ftoday` with no shell flash.
 
 - [ ] **Step 3: V3 — no secrets in the repo**
 
