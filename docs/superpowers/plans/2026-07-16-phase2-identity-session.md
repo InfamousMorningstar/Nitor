@@ -4,7 +4,7 @@
 
 **Goal:** Replace Nitor's stubbed auth with real Supabase identity — cookie-based sessions, a `proxy.ts` route guard, email/password + Google sign-in, and a `profiles` table behind RLS.
 
-**Architecture:** `@supabase/ssr` issues three thin clients (browser, server, session-refresh). Sessions ride in HTTP-only cookies refreshed by a root `proxy.ts` on every request; that same proxy is the authorization boundary and uses `getClaims()` to verify the JWT signature. A `profiles` table keyed to `auth.users` holds display name and the onboarding flag, protected by deny-by-default RLS. Habit data is untouched this slice — `MockHabitRepository` stays in memory.
+**Architecture:** `@supabase/ssr` issues three thin clients (browser, server, session-refresh). Sessions ride in HTTP-only cookies refreshed by `src/proxy.ts` on every request; that same proxy is the authorization boundary and uses `getClaims()` to verify the JWT signature. A `profiles` table keyed to `auth.users` holds display name and the onboarding flag, protected by deny-by-default RLS. Habit data is untouched this slice — `MockHabitRepository` stays in memory.
 
 **Tech Stack:** Next.js 16.2.10 (App Router), React 19.2.4, TypeScript, Supabase (Auth + Postgres), `@supabase/ssr`, Cloudflare Turnstile, Vitest 4, Tailwind 4.
 
@@ -57,7 +57,7 @@ Do not let the missing domain block the code. Do not let it be forgotten before 
 | `src/lib/supabase/client.ts` | browser Supabase client factory |
 | `src/lib/supabase/server.ts` | server Supabase client factory (RSC / routes / actions) |
 | `src/lib/supabase/session.ts` | session refresh + claims for the proxy |
-| `proxy.ts` (repo root) | route guard + session refresh (Next.js file convention) |
+| `src/proxy.ts` | route guard + session refresh (Next.js file convention — **`src/`, not the repo root**, because this project has a `src/` directory; see Task 7) |
 | `src/lib/auth/redirect.ts` | `safeNext()` open-redirect validator |
 | `src/app/auth/callback/route.ts` | PKCE code exchange (Google OAuth) |
 | `src/app/auth/confirm/route.ts` | email confirmation / recovery `verifyOtp` |
@@ -626,7 +626,7 @@ git commit -m "feat(auth): add supabase browser and server client factories"
 ## Task 7: Session refresh and the `proxy.ts` guard (S1, S8, V4)
 
 **Files:**
-- Create: `src/lib/supabase/session.ts`, `proxy.ts` (repo root)
+- Create: `src/lib/supabase/session.ts`, `src/proxy.ts`
 
 **Interfaces:**
 - Consumes: `safeNext` (Task 4), `@supabase/ssr`
@@ -653,7 +653,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * Refreshes the Supabase session cookies for a request and returns the
  * verified JWT claims.
  *
- * Named `session.ts`, deliberately NOT `proxy.ts`: the root `proxy.ts` is a
+ * Named `session.ts`, deliberately NOT `proxy.ts`: `src/proxy.ts` is a
  * Next.js file convention, and two same-named files at different layers
  * invites edits landing in the wrong one.
  */
@@ -711,7 +711,17 @@ Expected: a `getClaims` declaration. Confirm the result shape is `{ data: { clai
 
 - [ ] **Step 4: Write the guard**
 
-Create `proxy.ts` at the **repo root** (sibling of `package.json`, not inside `src/`):
+Create `src/proxy.ts`.
+
+> **The location is load-bearing, and "repo root" is WRONG for this project.** Next 16.2.10
+> resolves the proxy file by scanning `path.join(pagesDir || appDir, '..')`. This project's
+> `appDir` is `src/app`, so the scan directory is **`src/`** — a `proxy.ts` at the repo root is
+> never seen (`node_modules/next/dist/build/index.js:616-622`; the `isAtConventionLevel` check at
+> :629 accepts `/` only for projects without a `src/` directory). The dev bundler watches the same
+> directory (`.../router-utils/setup-dev-bundler.js:199-203`).
+>
+> A misplaced proxy fails exactly like a leftover `middleware.ts`: no build error, no runtime
+> warning, guard never runs, `/today` open to the world. Step 5 is what catches it.
 
 ```ts
 import { NextResponse, type NextRequest } from "next/server";
@@ -736,18 +746,29 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Redirects must carry the refreshed cookies, or the session is lost on the
-  // very request that establishes it.
+  // very request that establishes it — AND the S8 cache headers, or a CDN
+  // configured to cache redirects can store a response carrying a session.
+  // Copy the three headers explicitly rather than the whole header set:
+  // NextResponse.next() carries Next-internal x-middleware-* controls that are
+  // not safe to graft onto a redirect.
   function redirectTo(pathname: string, search = "") {
     const url = request.nextUrl.clone();
     url.pathname = pathname;
     url.search = search;
     const redirect = NextResponse.redirect(url);
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    for (const header of ["cache-control", "expires", "pragma"]) {
+      const value = response.headers.get(header);
+      if (value) redirect.headers.set(header, value);
+    }
     return redirect;
   }
 
   if (!claims && !PUBLIC_PATHS.has(pathname)) {
-    return redirectTo("/login", `?next=${encodeURIComponent(pathname)}`);
+    // Include the query string so a deep link survives the round trip; it is
+    // still a same-origin relative path, so safeNext accepts it.
+    const target = pathname + request.nextUrl.search;
+    return redirectTo("/login", `?next=${encodeURIComponent(target)}`);
   }
 
   if (claims && AUTH_ONLY_PATHS.has(pathname)) {
@@ -774,7 +795,9 @@ Then, in a browser with no session (or a private window):
 1. Visit `http://localhost:3000/today` → expect a redirect to `/login?next=%2Ftoday`, with **no flash** of the app shell.
 2. Visit `http://localhost:3000/` → expect the landing page, no redirect.
 
-If `/today` renders, the guard is not running. Re-check Step 1 and that `proxy.ts` is at the repo root.
+If `/today` renders, the guard is not running — almost certainly because the proxy file is in the
+wrong place. Confirm it is at `src/proxy.ts` (this project has a `src/` directory, so the repo root
+is never scanned) and that no `middleware.ts` exists. Both failures are silent.
 
 - [ ] **Step 6: Typecheck and commit**
 

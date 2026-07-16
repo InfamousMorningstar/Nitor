@@ -75,7 +75,7 @@ Three client factories from `@supabase/ssr`, each thin and single-purpose:
 | `src/lib/supabase/server.ts` | `createServerClient` | Server Components, Route Handlers, Server Actions |
 | `src/lib/supabase/session.ts` | `createServerClient` | `proxy.ts` session refresh |
 
-(The session-refresh factory is deliberately **not** named `proxy.ts` — the root `proxy.ts` is a
+(The session-refresh factory is deliberately **not** named `proxy.ts` — `src/proxy.ts` is a
 Next.js file convention, and two files of the same name at different layers invites edits landing
 in the wrong one.)
 
@@ -87,8 +87,16 @@ The `matcher` config is unchanged.
 > **A leftover `middleware.ts` is ignored at build time with no error and no runtime warning.**
 
 For an auth guard this is a silent, total failure: the file looks right, the build passes, and
-nothing runs. The repo must contain `proxy.ts` and **must not** contain `middleware.ts`.
-This is a verification gate (V4).
+nothing runs. The repo must contain the proxy and **must not** contain `middleware.ts`.
+
+**The file lives at `src/proxy.ts`, not the repo root.** Next resolves it by scanning
+`path.join(pagesDir || appDir, '..')`; this project's `appDir` is `src/app`, so the scan directory
+is `src/`, and a repo-root `proxy.ts` is never seen
+(`node_modules/next/dist/build/index.js:616-622` — `isAtConventionLevel` accepts `/` only for
+projects without a `src/` directory). Verified against installed Next 16.2.10.
+
+Wrong location fails exactly like the wrong filename: silently, completely, with the app serving
+protected pages to logged-out users. Both are covered by V4, and only a live request proves it.
 
 ### Route map
 
