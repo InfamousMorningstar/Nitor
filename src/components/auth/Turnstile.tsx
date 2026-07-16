@@ -50,11 +50,24 @@ export const Turnstile = forwardRef<TurnstileHandle, TurnstileProps>(
     const holder = useRef<HTMLDivElement>(null);
     const widgetId = useRef<string | null>(null);
 
+    // Latest-ref pattern. Consumers naturally pass inline arrows, whose
+    // identity changes on every parent render — every keystroke in an auth
+    // form. If the widget lifecycle depended on that identity, each keystroke
+    // would tear down and rebuild the CAPTCHA and discard any solved token,
+    // making submission impossible. The refs keep callbacks fresh while the
+    // effect below runs once per mount.
+    const onTokenRef = useRef(onToken);
+    const onErrorRef = useRef(onError);
+    useEffect(() => {
+      onTokenRef.current = onToken;
+      onErrorRef.current = onError;
+    });
+
     useImperativeHandle(ref, () => ({
       reset() {
         if (widgetId.current && window.turnstile) {
           window.turnstile.reset(widgetId.current);
-          onToken(null);
+          onTokenRef.current(null);
         }
       },
     }));
@@ -68,12 +81,12 @@ export const Turnstile = forwardRef<TurnstileHandle, TurnstileProps>(
         widgetId.current = window.turnstile.render(holder.current, {
           sitekey: sitekey!,
           theme: "auto",
-          callback: (token) => onToken(token),
+          callback: (token) => onTokenRef.current(token),
           "error-callback": () => {
-            onToken(null);
-            onError?.();
+            onTokenRef.current(null);
+            onErrorRef.current?.();
           },
-          "expired-callback": () => onToken(null),
+          "expired-callback": () => onTokenRef.current(null),
         });
       }
 
@@ -94,8 +107,8 @@ export const Turnstile = forwardRef<TurnstileHandle, TurnstileProps>(
       // indistinguishable from the deliberate no-site-key no-op: an empty div
       // and a form that rejects every submit — a permanent, silent lockout.
       function handleScriptError() {
-        onToken(null);
-        onError?.();
+        onTokenRef.current(null);
+        onErrorRef.current?.();
       }
 
       if (window.turnstile) {
@@ -121,7 +134,9 @@ export const Turnstile = forwardRef<TurnstileHandle, TurnstileProps>(
         script.removeEventListener("error", handleScriptError);
         removeWidget();
       };
-    }, [onToken, onError]);
+      // The site key is fixed for the app's lifetime and callbacks go through
+      // refs — mount/unmount is the only thing that should drive this effect.
+    }, []);
 
     return <div ref={holder} className="flex justify-center" />;
   },
