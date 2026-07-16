@@ -47,4 +47,6 @@ nitor-*.png
 redesign-*.png
 docs/*
 !docs/features/
+# Specs and implementation plans are versioned — they get reviewed like code.
+!docs/superpowers/
 .superpowers/
