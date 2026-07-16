@@ -23,7 +23,7 @@ Every task's requirements implicitly include this section. Values are copied ver
 - **S5** — `user_metadata` never backs an RLS policy or a trust decision.
 - **S6** — RLS enabled on every table in the `public` schema, deny-by-default.
 - **S7** — `security definer` functions pin `search_path = ''` and fully qualify every reference.
-- **S8** — `setAll` applies `Cache-Control`, `Expires`, `Pragma`. In Server Components `setAll` is wrapped in try/catch.
+- **S8** — `setAll` applies `Cache-Control`, `Expires`, `Pragma`. In Server Components `setAll` is wrapped in try/catch. **Verified against installed @supabase/ssr 0.12.3:** `SetAllCookies` is `(cookies, headers: Record<string,string>) => …` — the library supplies these headers; apply them rather than hardcoding. The **proxy is the only place they can land**, because the server client writes through Next's `cookies()` store, which cannot set response headers.
 - **S9** — `?next=` accepts only same-origin relative paths matching `/^\/(?!\/)/`. Anything else falls back to `/today`.
 - **S10** — Supabase password minimum 12 **and** `passwordError()` updated to match. Leaked-password protection enabled.
 - **S11** — Turnstile on login, signup, **and** forgot-password. CAPTCHA applies to all auth endpoints, not just signup.
@@ -668,7 +668,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
@@ -676,13 +676,18 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
-          // S8: never let a shared cache store a response carrying a session.
-          response.headers.set(
-            "Cache-Control",
-            "private, no-cache, no-store, max-age=0, must-revalidate",
+          // S8. The library hands us the anti-caching headers it wants set
+          // alongside auth cookies (Cache-Control / Expires / Pragma). Apply
+          // them rather than hardcoding the values, so they cannot drift.
+          //
+          // THIS IS THE ONLY PLACE THEY CAN LAND: the server client
+          // (src/lib/supabase/server.ts) writes through Next's cookies()
+          // store, which has no API for setting response headers. Without
+          // this loop, a CDN or reverse proxy can cache a response carrying
+          // a session and serve one user's token to another.
+          Object.entries(headers).forEach(([key, value]) =>
+            response.headers.set(key, value),
           );
-          response.headers.set("Expires", "0");
-          response.headers.set("Pragma", "no-cache");
         },
       },
     },

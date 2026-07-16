@@ -214,6 +214,16 @@ existing `public.quotes` table (already compliant: RLS on, select-only policy).
 carrying a session. In Server Components — which cannot set headers — `setAll` is wrapped in
 try/catch, since the proxy is what writes cookies and headers on every request.
 
+_Verified against installed `@supabase/ssr` 0.12.3:_ `SetAllCookies` is
+`(cookies, headers: Record<string, string>) => Promise<void> | void`. The library supplies the
+exact anti-caching headers; apply what it passes rather than hardcoding the values. The library's
+own note on why: *"Responses that set auth cookies must not be cached by CDNs or reverse proxies,
+otherwise one user's session token can be served to a different user."*
+
+**The proxy is the only place these headers can land.** The server client writes through Next's
+`cookies()` store, which has no API for setting response headers — so it takes the one-argument
+`setAll` form and delegates. If the proxy omits the header loop, S8 is satisfied nowhere.
+
 **S9 — Open-redirect protection on `?next=`.** Accept only same-origin relative paths: must
 match `/^\/(?!\/)/` (single leading slash, no protocol-relative `//evil.com`, no absolute URL).
 Anything else falls back to `/today`. Unit-tested (V5).
