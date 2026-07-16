@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Glitch } from "@/components/brand/Glitch";
+import { BetaChip } from "@/components/ui/BetaChip";
 import { NAV_ITEMS } from "./navItems";
 
 /**
@@ -14,10 +15,11 @@ export function Sidebar() {
   const pathname = usePathname();
   return (
     <div className="fixed left-0 top-0 z-40 hidden h-screen w-60 flex-col border-r [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))] md:flex">
-      <div className="px-6 py-6">
+      <div className="flex items-center gap-2.5 px-6 py-6">
         <Link href="/today" aria-label="Nitor home" className="inline-block [color:rgb(var(--text))]">
           <Wordmark size="text-xl" />
         </Link>
+        <BetaChip />
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 px-2">

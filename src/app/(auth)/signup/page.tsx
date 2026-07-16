@@ -7,6 +7,7 @@ import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { FieldError } from "@/components/auth/FieldError";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, emailError, passwordError } from "@/components/auth/formKit";
+import { BETA_SIGNUP_NOTICE } from "@/content/beta";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -81,6 +82,10 @@ export default function SignupPage() {
         <button type="submit" className={primaryButton}>
           Create account
         </button>
+
+        <p className="text-center text-xs leading-relaxed [color:rgb(var(--text-mute))]">
+          {BETA_SIGNUP_NOTICE}
+        </p>
       </form>
 
       <p className="mt-8 text-center text-sm [color:rgb(var(--text-dim))]">
