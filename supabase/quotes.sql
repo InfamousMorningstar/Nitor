@@ -18,6 +18,10 @@ create table if not exists public.quotes (
 
 alter table public.quotes enable row level security;
 
+-- `create policy` has no `if not exists` form, so the policy is dropped first.
+-- Without this the file aborts on a re-run (42710).
+drop policy if exists "public read" on public.quotes;
+
 create policy "public read" on public.quotes for select using (true);
 
 grant select on public.quotes to anon;

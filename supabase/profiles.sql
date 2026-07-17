@@ -60,6 +60,15 @@ begin
 end;
 $$;
 
+-- Postgres grants EXECUTE to PUBLIC on every new function, so PostgREST would
+-- expose this definer function at /rest/v1/rpc/handle_new_user to anon and
+-- authenticated. A direct call is refused by Postgres anyway ("trigger
+-- functions can only be called as triggers", 0A000), but the grant is revoked
+-- so the advisor stays clean and no future definer function inherits it by
+-- default. The trigger still fires: EXECUTE is checked when the trigger is
+-- created, not each time it runs.
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
 drop trigger if exists on_auth_user_created on auth.users;
 
 create trigger on_auth_user_created
