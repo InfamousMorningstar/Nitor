@@ -8,6 +8,7 @@ import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
 import { createClient } from "@/lib/supabase/client";
 import { safeNext } from "@/lib/auth/redirect";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, emailError, requiredError } from "@/components/auth/formKit";
+import { authLinkErrorMessage } from "@/components/auth/errorCopy";
 
 function LoginForm() {
   const router = useRouter();
@@ -16,7 +17,12 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [serverError, setServerError] = useState<string | undefined>();
+  // /auth/confirm and /auth/callback land here with ?error= when a link is
+  // expired or an exchange fails; without this the user sees a silent login
+  // page. Whitelist-mapped — an unknown value renders nothing, never echoed.
+  const [serverError, setServerError] = useState<string | undefined>(() =>
+    authLinkErrorMessage(searchParams.get("error")),
+  );
   const [busy, setBusy] = useState(false);
   const turnstile = useRef<TurnstileHandle>(null);
 

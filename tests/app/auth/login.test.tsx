@@ -241,6 +241,25 @@ describe("LoginPage", () => {
     ).toBeInTheDocument();
   });
 
+  // /auth/confirm and /auth/callback bounce failures here as ?error=<code>.
+  // Before this mapping the user landed on a silent login page with no hint
+  // their confirmation or reset link had died.
+  it("explains an expired or invalid link arriving as ?error=invalid_link", () => {
+    rawQuery = "error=invalid_link";
+    render(<LoginPage />);
+    expect(
+      screen.getByText("That link is invalid or has expired."),
+    ).toBeInTheDocument();
+  });
+
+  it("never echoes an unknown ?error= value into the DOM", () => {
+    rawQuery = "error=pwned%20by%20mallory";
+    const { container } = render(<LoginPage />);
+    expect(screen.queryByText(/pwned/)).not.toBeInTheDocument();
+    // No alert renders at all for unrecognized codes.
+    expect(container.querySelector('[role="alert"]')).not.toBeInTheDocument();
+  });
+
   it("has no magic-link path", () => {
     render(<LoginPage />);
     expect(

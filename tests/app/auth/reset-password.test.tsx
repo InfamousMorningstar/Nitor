@@ -90,16 +90,44 @@ describe("ResetPasswordPage", () => {
     });
   });
 
-  it("surfaces the server error and does not navigate on failure", async () => {
+  // The most common real failure: the user opens the reset email late and the
+  // recovery session is gone. auth-js reports this as AuthSessionMissingError
+  // (name-only — its code is undefined), whose raw message is the
+  // developer-facing "Auth session missing!".
+  it("maps an expired recovery session to friendly copy with a re-request link", async () => {
     updateUser.mockResolvedValue({
       data: { user: null },
-      error: { message: "Auth session missing!" },
+      error: { message: "Auth session missing!", name: "AuthSessionMissingError" },
     });
     render(<ResetPasswordPage />);
     fillForm("long-enough-pw");
     submit();
 
-    expect(await screen.findByText("Auth session missing!")).toBeInTheDocument();
+    expect(
+      await screen.findByText("This reset link has expired. Request a new one below."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Auth session missing!")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Request a new reset link" }),
+    ).toHaveAttribute("href", "/forgot-password");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("shows generic copy for unrecognized server errors, never the raw message", async () => {
+    updateUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: "internal: reauthentication_needed for aal2", code: "reauthentication_needed" },
+    });
+    render(<ResetPasswordPage />);
+    fillForm("long-enough-pw");
+    submit();
+
+    expect(
+      await screen.findByText("Could not update your password. Please try again."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/reauthentication_needed/),
+    ).not.toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
   });
 

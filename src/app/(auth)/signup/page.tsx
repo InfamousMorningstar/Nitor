@@ -7,6 +7,7 @@ import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
 import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
 import { createClient } from "@/lib/supabase/client";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, emailError, passwordError } from "@/components/auth/formKit";
+import { signUpErrorMessage } from "@/components/auth/errorCopy";
 import { BETA_SIGNUP_NOTICE } from "@/content/beta";
 
 export default function SignupPage() {
@@ -56,7 +57,9 @@ export default function SignupPage() {
       });
 
       if (error) {
-        setServerError(error.message);
+        // Mapped to Nitor's own copy — a raw error.message here would leak
+        // "User already registered" if email confirmation were ever disabled.
+        setServerError(signUpErrorMessage(error));
         return;
       }
       setSent(true);

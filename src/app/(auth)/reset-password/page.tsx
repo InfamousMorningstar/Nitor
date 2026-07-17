@@ -7,6 +7,10 @@ import { FieldError } from "@/components/auth/FieldError";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
 import { createClient } from "@/lib/supabase/client";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, passwordError } from "@/components/auth/formKit";
+import {
+  RESET_LINK_EXPIRED_MESSAGE,
+  updatePasswordErrorMessage,
+} from "@/components/auth/errorCopy";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -35,7 +39,9 @@ export default function ResetPasswordPage() {
       const supabase = createClient();
       const { error } = await supabase.auth.updateUser({ password });
       if (error) {
-        setServerError(error.message);
+        // Mapped to Nitor's own copy — the raw message for the common
+        // expired-link case is the developer-facing "Auth session missing!".
+        setServerError(updatePasswordErrorMessage(error));
         return;
       }
       // The recovery session is a real signed-in session — land in the app.
@@ -94,6 +100,11 @@ export default function ResetPasswordPage() {
         </div>
 
         <FieldError message={serverError} />
+        {serverError === RESET_LINK_EXPIRED_MESSAGE && (
+          <Link href="/forgot-password" className={accentLink}>
+            Request a new reset link
+          </Link>
+        )}
 
         <button type="submit" className={primaryButton} disabled={busy}>
           {busy ? "Updating…" : "Update password"}

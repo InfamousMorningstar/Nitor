@@ -136,10 +136,14 @@ describe("SignupPage", () => {
     expect(screen.getByText("sam@example.com")).toBeInTheDocument();
   });
 
-  it("surfaces a server error and resets the spent token on failure (S11)", async () => {
+  it("shows only generic copy on a server error and resets the spent token (S11)", async () => {
+    // The exact failure Supabase reports when email confirmation is disabled.
+    // The raw message must never reach the DOM — it confirms the address has
+    // an account (enumeration), and today's obfuscation is only a dashboard
+    // toggle away from being turned off.
     signUp.mockResolvedValue({
       data: {},
-      error: { message: "User already registered" },
+      error: { message: "User already registered", code: "user_already_exists" },
     });
     render(<SignupPage />);
     fillForm();
@@ -147,8 +151,9 @@ describe("SignupPage", () => {
     submit();
 
     expect(
-      await screen.findByText("User already registered"),
+      await screen.findByText("Could not create your account. Please try again."),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/already registered/i)).not.toBeInTheDocument();
     // Tokens are single-use: the widget must be reset after a failed submit.
     expect(turnstile.reset).toHaveBeenCalledWith("widget-1");
 
@@ -158,6 +163,29 @@ describe("SignupPage", () => {
     submit();
     expect(screen.getByText("Please complete the challenge.")).toBeInTheDocument();
     expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it("maps actionable error codes to Nitor's own copy, never the raw message", async () => {
+    signUp.mockResolvedValue({
+      data: {},
+      error: {
+        message: "Password should contain at least one symbol.",
+        code: "weak_password",
+      },
+    });
+    render(<SignupPage />);
+    fillForm();
+    solveCaptcha();
+    submit();
+
+    expect(
+      await screen.findByText(
+        "That password isn't strong enough. Try a longer or less common one.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Password should contain at least one symbol."),
+    ).not.toBeInTheDocument();
   });
 
   it("recovers the form if the auth call throws (network-layer failure)", async () => {
