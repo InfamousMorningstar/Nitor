@@ -9,22 +9,22 @@
  * supabase/quotes.sql), so re-running this script is safe and will not
  * create duplicate rows.
  *
- * Requires env vars (server-only — never expose SUPABASE_SERVICE_ROLE_KEY
- * to the client):
+ * Requires env vars (server-only — never expose SUPABASE_SECRET_KEY to the
+ * client; it bypasses RLS):
  *   NEXT_PUBLIC_SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY
+ *   SUPABASE_SECRET_KEY
  *
- * Run after provisioning: `npx tsx scripts/seed-quotes.ts`.
+ * Run after provisioning: `npx tsx --env-file=.env.local scripts/seed-quotes.ts`.
  */
 import { QUOTES } from "../src/domain/quotes";
 
 async function main(): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
 
-  if (!url || !serviceRoleKey) {
+  if (!url || !secretKey) {
     console.error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY. " +
+      "Missing NEXT_PUBLIC_SUPABASE_URL and/or SUPABASE_SECRET_KEY. " +
         "Set these env vars (server-only) before running this script."
     );
     process.exit(1);
@@ -33,8 +33,8 @@ async function main(): Promise<void> {
   const res = await fetch(`${url}/rest/v1/quotes?on_conflict=text`, {
     method: "POST",
     headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: secretKey,
+      Authorization: `Bearer ${secretKey}`,
       "Content-Type": "application/json",
       Prefer: "resolution=merge-duplicates,return=minimal",
     },

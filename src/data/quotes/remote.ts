@@ -3,13 +3,14 @@
  *
  * The app ships with 58 bundled, verified quotes (src/domain/quotes.ts) and
  * works fully offline on those. When `NEXT_PUBLIC_SUPABASE_URL` and
- * `NEXT_PUBLIC_SUPABASE_ANON_KEY` are configured, this module fetches
+ * `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are configured, this module fetches
  * additional verified quotes from Supabase every 14 days, caches them in
  * localStorage, and merges them into the pool via `setRemoteQuotes`
  * (bundled quotes always win on collision — see quotes.ts).
  *
- * With no env vars set (the current state — Supabase is not provisioned
- * yet), `loadRemoteQuotes` is a no-op and the app runs on the bundled pool.
+ * With no env vars set, `loadRemoteQuotes` is a no-op and the app runs on the
+ * bundled pool. That fallback is silent by design, which is why a wrong env var
+ * name here is invisible: the pool just stays at 58 and everything looks fine.
  */
 import type { Quote } from "@/domain/quotes";
 import { setRemoteQuotes } from "@/domain/quotes";
@@ -39,7 +40,7 @@ export function validateRows(rows: Partial<Quote>[]): Quote[] {
  */
 export async function loadRemoteQuotes(): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   // 1. Warm from cache immediately, regardless of provisioning state.
   try {
@@ -59,8 +60,15 @@ export async function loadRemoteQuotes(): Promise<void> {
   }
 
   try {
+    // `apikey` only. A publishable key is in fact accepted as
+    // `Authorization: Bearer` (verified against the live API — it returns 200,
+    // and a garbage Bearer 401s, so the header really is parsed), but
+    // Authorization is where a signed-in user's JWT belongs. Putting the
+    // publishable key there would pin the request to `anon` even for an
+    // authenticated caller. Harmless for a public-read table; wrong as a
+    // pattern to copy.
     const res = await fetch(`${url}/rest/v1/quotes?select=text,author,source,tradition,themes`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      headers: { apikey: key },
     });
     if (!res.ok) return;
     const rows = validateRows(await res.json());
