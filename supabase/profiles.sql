@@ -38,6 +38,16 @@ create policy "profiles_update_own" on public.profiles
   using ((select auth.uid()) = id)
   with check ((select auth.uid()) = id);
 
+-- The policy above scopes updates to your own ROW; these grants scope them to
+-- the two columns the app actually writes. Supabase's default grants give
+-- authenticated UPDATE on every column, which would let a user rewrite their
+-- own created_at — not a trust input today, but honest metadata should stay
+-- honest. (id is additionally pinned by the with-check; RLS already blocks
+-- anon entirely.)
+revoke update on table public.profiles from anon, authenticated;
+grant update (display_name, onboarding_completed)
+  on table public.profiles to authenticated;
+
 -- security definer so it can insert into a table the new user cannot yet see.
 -- `set search_path = ''` is mandatory: a definer function with a mutable
 -- search path lets a caller shadow an unqualified name and run code as the
