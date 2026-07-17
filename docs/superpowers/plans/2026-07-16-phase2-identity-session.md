@@ -1986,9 +1986,19 @@ Every gate below produces observable output. Record the actual result — "looks
 - [ ] **Step 1: V9 — the full local suite**
 
 ```bash
-npx tsc --noEmit && npx eslint . && npx vitest run && npm run build
+npx tsc --noEmit && npx vitest run && npm run build
+npx eslint $(git diff --name-only 3db39d8 HEAD -- '*.ts' '*.tsx')
 ```
-Expected: all clean; **131 tests** pass (115 existing + 8 redirect + 8 formKit).
+Expected: all clean; every test passes (137 as of the Turnstile fixes — later tasks add more;
+record the actual count, not "looks right").
+
+The lint gate is **consciously scoped to files this branch touched**, not `npx eslint .`.
+Measured 2026-07-16: `npx eslint .` fails with **25 pre-existing errors at pristine HEAD
+(3db39d8)** — eslint-plugin-react-hooks 7.x rules firing on Phase 1 code (ScrollStory alone
+has 13). Zero of them are in Phase 2 files. Do not "fix" them here: react-hooks findings in
+UI code need individual judgment and belong to a dedicated lint-debt task on its own branch.
+Until that task lands, `npx eslint .` failing with exactly those 25 is the expected baseline;
+a 26th error means this branch introduced one.
 
 - [ ] **Step 2: V4 — the guard exists AND is actually wired in**
 
