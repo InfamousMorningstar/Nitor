@@ -1044,6 +1044,28 @@ git commit -m "feat(auth): add turnstile widget wrapper"
 
 ## Task 10: Real Google OAuth, drop Apple and GitHub
 
+> **SPLIT — user decision 2026-07-17.** Google OAuth needs a Google Cloud OAuth client
+> (client ID + secret in Supabase → Auth → Providers) that does not exist yet. Until it does, a
+> "Continue with Google" button would dead-loop: `router.push("/today")` → the live proxy guard
+> sees no session → 307 back to `/login`. Since Task 7 landed, **every control on the login page
+> already behaves this way** — the stub UI is not merely dishonest, it is non-functional.
+>
+> This task is therefore split:
+>
+> - **Task 10a (do now, after Tasks 11–13):** remove the OAuth section entirely — Apple, GitHub
+>   **and** Google — from `login/page.tsx` and `signup/page.tsx`, along with the `or` divider that
+>   only exists to separate it from the email form. Delete `OAuthButtons.tsx`. Login and signup
+>   become email/password only, and every control on screen works. Nothing lies.
+> - **Task 10b (blocked on the user):** restore Google exactly as specified below, once the Google
+>   Cloud client exists. Re-adds the component, the mount points, and the divider.
+>
+> **The note below that callers "need no change" is therefore FALSE for 10a**: removing the
+> component means `login/page.tsx` and `signup/page.tsx` must both change. Apple and GitHub are
+> gone permanently per spec:51; Google's removal is temporary and 10b is its restoration.
+>
+> Do 10a AFTER Tasks 11–13 — those make surgical edits to the same two pages, and removing the
+> OAuth block first would only shift the lines under them.
+
 **Files:**
 - Modify: `src/components/auth/OAuthButtons.tsx` (full rewrite)
 
