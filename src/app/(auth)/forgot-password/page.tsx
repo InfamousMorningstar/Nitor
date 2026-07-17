@@ -1,22 +1,59 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { FieldError } from "@/components/auth/FieldError";
+import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
+import { createClient } from "@/lib/supabase/client";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, emailError } from "@/components/auth/formKit";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [sent, setSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
+  const turnstile = useRef<TurnstileHandle>(null);
 
   const emailErr = submitted ? emailError(email) : undefined;
 
-  function handleSubmit(e: React.FormEvent) {
+  // Turnstile's onError means the challenge can never be solved (script blocked
+  // by an ad blocker or the network), which a null token cannot express. Without
+  // surfacing it the user sees a form that rejects every submit and no visible
+  // challenge. Must be a STABLE reference: pass a useCallback (or a plain state
+  // setter), never an inline arrow.
+  const handleCaptchaUnavailable = useCallback(() => {
+    setServerError(
+      "Verification could not load. Disable your ad blocker or try another network.",
+    );
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
+    setServerError(undefined);
     if (emailError(email)) return;
-    // Stubbed — no email is actually sent.
+    if (!captchaToken) {
+      setServerError("Please complete the challenge.");
+      return;
+    }
+
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      captchaToken,
+      redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
+    });
+    setBusy(false);
+    turnstile.current?.reset(); // single-use token (S11)
+
+    if (error) {
+      setServerError("Could not send the link. Try again.");
+      return;
+    }
+    // The existing copy already says "If that email exists…" — keep it. Never
+    // reveal whether an address has an account.
     setSent(true);
   }
 
@@ -66,8 +103,15 @@ export default function ForgotPasswordPage() {
           <FieldError message={emailErr} />
         </div>
 
-        <button type="submit" className={primaryButton}>
-          Send reset link
+        <Turnstile
+          ref={turnstile}
+          onToken={setCaptchaToken}
+          onError={handleCaptchaUnavailable}
+        />
+        <FieldError message={serverError} />
+
+        <button type="submit" className={primaryButton} disabled={busy}>
+          {busy ? "Sending…" : "Send reset link"}
         </button>
       </form>
 
