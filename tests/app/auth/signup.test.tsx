@@ -102,7 +102,14 @@ describe("SignupPage", () => {
     expect(signUp).not.toHaveBeenCalled();
   });
 
-  it("does not tear down the widget while the user types (stable callbacks)", () => {
+  // This pins page-level behavior: the widget is rendered once and survives
+  // re-renders as the user types, whatever the page's own render pattern is
+  // (conditional rendering, a changing key, remounting the subtree, etc).
+  // It does NOT prove the page's callbacks are stable — Turnstile's
+  // latest-ref pattern ([] effect deps) tolerates unstable inline callbacks
+  // by design, so this test would pass either way. That invariant is
+  // guarded in tests/components/auth/Turnstile.test.tsx, not here.
+  it("renders the widget once and does not remount it while the user types", () => {
     render(<SignupPage />);
     const email = screen.getByLabelText("Email");
     fireEvent.change(email, { target: { value: "s" } });
