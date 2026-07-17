@@ -1,13 +1,34 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Glitch } from "@/components/brand/Glitch";
 
-const COLUMNS: { title: string; links: string[] }[] = [
-  { title: "Product", links: ["Features", "Pricing", "Changelog", "Roadmap"] },
-  { title: "Legal", links: ["Privacy", "Terms", "Security"] },
+type FooterLink = { label: string; href: string };
+
+const COLUMNS: { title: string; links: FooterLink[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { label: "Features", href: "#" },
+      { label: "Pricing", href: "#" },
+      { label: "Changelog", href: "#" },
+      { label: "Roadmap", href: "#" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Privacy", href: "#" },
+      { label: "Terms", href: "#" },
+      { label: "Security", href: "/security" },
+    ],
+  },
 ];
 
-function FooterColumn({ title, links }: { title: string; links: string[] }) {
+const footerLinkClass =
+  "font-[family-name:var(--font-mono)] text-[13px] [color:rgb(var(--text-dim))] transition-colors duration-[var(--dur-micro)] hover:[color:rgb(var(--text))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]";
+
+function FooterColumn({ title, links }: { title: string; links: FooterLink[] }) {
   return (
     <div>
       <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]">
@@ -15,13 +36,16 @@ function FooterColumn({ title, links }: { title: string; links: string[] }) {
       </p>
       <ul className="mt-4 flex flex-col gap-2.5">
         {links.map((l) => (
-          <li key={l}>
-            <a
-              href="#"
-              className="font-[family-name:var(--font-mono)] text-[13px] [color:rgb(var(--text-dim))] transition-colors duration-[var(--dur-micro)] hover:[color:rgb(var(--text))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-            >
-              {l}
-            </a>
+          <li key={l.label}>
+            {l.href.startsWith("/") ? (
+              <Link href={l.href} className={footerLinkClass}>
+                {l.label}
+              </Link>
+            ) : (
+              <a href={l.href} className={footerLinkClass}>
+                {l.label}
+              </a>
+            )}
           </li>
         ))}
       </ul>
