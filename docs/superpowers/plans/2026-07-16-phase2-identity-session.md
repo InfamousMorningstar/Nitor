@@ -1823,7 +1823,23 @@ git commit -m "feat(auth): persist onboarding completion to profile"
 - Consumes: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - Produces: a working remote quote top-up.
 
-**This is a real break, not a cleanup.** `remote.ts:63` currently sends both `apikey` and `Authorization: Bearer <key>`. Publishable keys **cannot** be sent as `Authorization: Bearer` (S3). The path fails closed to the bundled 58 quotes, so a broken version looks completely healthy — hence V8.
+**STATUS: DONE — commit 7f8e7f4. This section's original diagnosis was WRONG; corrected below.**
+
+**This is a real break, not a cleanup.** But the break is `remote.ts:42` reading `NEXT_PUBLIC_SUPABASE_ANON_KEY`, which no longer exists. The key is `undefined`, so `loadRemoteQuotes` returns early at the not-provisioned guard on line 52 and **never fetches at all**. The path fails closed to the bundled 58 quotes, so a broken version looks completely healthy — hence V8.
+
+~~Publishable keys **cannot** be sent as `Authorization: Bearer` (S3).~~ **This claim is false.** Verified against the live API (2026-07-16):
+
+| Request | Result |
+| --- | --- |
+| `apikey` only | **200** |
+| `apikey` + `Authorization: Bearer <publishable>` | **200** — so Bearer is *not* the break |
+| `apikey` + `Authorization: Bearer <garbage>` | 401 `Expected 3 parts in JWT` |
+| `Authorization: Bearer <publishable>`, no `apikey` | 401 `No API key found` |
+| bogus `apikey` | 401 `Invalid API key` |
+
+The garbage-Bearer 401 is the control that makes this conclusive: `Authorization` genuinely is parsed, so the 200 on row 2 is a real acceptance and not the header being ignored. The env var name was the *only* defect, and the fetch never reached the header.
+
+Dropping `Authorization` is still correct — a publishable key there pins the request to `anon` even for a signed-in caller — but it is a **cleanup**, not the fix. Do not repeat the S3 claim as stated; the real S3 rule is narrower than "publishable keys are rejected as Bearer".
 
 - [ ] **Step 1: Update the env var and headers**
 
@@ -1844,8 +1860,9 @@ and replace:
 ```
 with:
 ```ts
-      // Publishable keys go in `apikey` only — they are rejected as a
-      // Bearer token (S3).
+      // `apikey` only. Authorization is where a signed-in user's JWT belongs;
+      // a publishable key there pins the request to `anon`. (It is accepted as
+      // Bearer — this is a cleanup, not the fix. See the table above.)
       headers: { apikey: key },
 ```
 
