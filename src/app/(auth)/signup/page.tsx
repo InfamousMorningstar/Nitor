@@ -44,25 +44,31 @@ export default function SignupPage() {
     }
 
     setBusy(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        captchaToken,
-        emailRedirectTo: `${window.location.origin}/auth/confirm?next=/onboarding`,
-      },
-    });
-    setBusy(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          captchaToken,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/onboarding`,
+        },
+      });
 
-    // The token is spent whether or not the call succeeded (S11).
-    turnstile.current?.reset();
-
-    if (error) {
-      setServerError(error.message);
-      return;
+      if (error) {
+        setServerError(error.message);
+        return;
+      }
+      setSent(true);
+    } catch {
+      // signUp returns { error } for every AuthError; a throw here is a non-auth
+      // failure (network layer), so keep the message generic.
+      setServerError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+      // The token is spent whether or not the call succeeded (S11).
+      turnstile.current?.reset();
     }
-    setSent(true);
   }
 
   if (sent) {

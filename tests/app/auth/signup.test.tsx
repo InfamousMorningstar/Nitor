@@ -160,6 +160,23 @@ describe("SignupPage", () => {
     expect(signUp).not.toHaveBeenCalled();
   });
 
+  it("recovers the form if the auth call throws (network-layer failure)", async () => {
+    signUp.mockRejectedValue(new Error("network down"));
+    render(<SignupPage />);
+    fillForm();
+    solveCaptcha();
+    submit();
+
+    // Generic message shown, button re-enabled, spent token reset.
+    expect(
+      await screen.findByText("Something went wrong. Please try again."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account" }),
+    ).not.toBeDisabled();
+    expect(turnstile.reset).toHaveBeenCalledWith("widget-1");
+  });
+
   it("tells the user when the challenge itself cannot load (ad blocker)", () => {
     render(<SignupPage />);
     failCaptcha();

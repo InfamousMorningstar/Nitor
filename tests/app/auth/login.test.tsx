@@ -214,6 +214,22 @@ describe("LoginPage", () => {
     expect(signInWithPassword).not.toHaveBeenCalled();
   });
 
+  it("recovers the form if the auth call throws (network-layer failure)", async () => {
+    signInWithPassword.mockRejectedValue(new Error("network down"));
+    render(<LoginPage />);
+    fillForm();
+    solveCaptcha();
+    submit();
+
+    // Generic message shown, button re-enabled, spent token reset.
+    expect(
+      await screen.findByText("Something went wrong. Please try again."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log in" })).not.toBeDisabled();
+    expect(turnstile.reset).toHaveBeenCalledWith("widget-1");
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it("tells the user when the challenge itself cannot load (ad blocker)", () => {
     render(<LoginPage />);
     failCaptcha();

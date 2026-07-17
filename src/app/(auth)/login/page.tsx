@@ -45,24 +45,32 @@ function LoginForm() {
     }
 
     setBusy(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-      options: { captchaToken },
-    });
-    setBusy(false);
-    turnstile.current?.reset(); // single-use token (S11)
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
 
-    if (error) {
-      // Deliberately generic: never reveal whether the address has an account.
-      setServerError("That email or password is not right.");
-      return;
+      if (error) {
+        // Deliberately generic: never reveal whether the address has an account.
+        setServerError("That email or password is not right.");
+        return;
+      }
+
+      // safeNext rejects attacker-supplied absolute/protocol-relative targets (S9).
+      router.push(safeNext(searchParams.get("next")));
+      router.refresh();
+    } catch {
+      // signInWithPassword returns { error } for every AuthError; a throw here is
+      // a non-auth failure (network layer). Not a credentials problem, so keep the
+      // message generic rather than reusing the returned-error copy.
+      setServerError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+      turnstile.current?.reset(); // single-use token (S11)
     }
-
-    // safeNext rejects attacker-supplied absolute/protocol-relative targets (S9).
-    router.push(safeNext(searchParams.get("next")));
-    router.refresh();
   }
 
   return (
