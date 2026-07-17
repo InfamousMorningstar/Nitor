@@ -66,6 +66,16 @@ describe("GET /auth/confirm", () => {
     expect(res.headers.get("location")).toBe(`${ORIGIN}/today`);
   });
 
+  it("keeps a percent-encoded next verbatim — never decoded into an authority", async () => {
+    // Raw query value %2F%252F%252Fevil.com; searchParams.get() decodes it
+    // once to "/%2F%2Fevil.com", which safeNext admits. The redirect must
+    // carry that string untouched: a second decode would yield "//evil.com".
+    const res = await get(
+      "/auth/confirm?token_hash=th_1&type=signup&next=%2F%252F%252Fevil.com",
+    );
+    expect(res.headers.get("location")).toBe(`${ORIGIN}/%2F%2Fevil.com`);
+  });
+
   it("redirects to /login?error=invalid_link when verification fails", async () => {
     verifyOtp.mockResolvedValue({ error: { message: "expired" } });
     const res = await get("/auth/confirm?token_hash=stale&type=signup");
