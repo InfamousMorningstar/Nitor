@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/state/SessionProvider";
+import { createClient } from "@/lib/supabase/client";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { NixCreature } from "@/components/pet/NixCreature";
 import { HABIT_TEMPLATES } from "@/domain/habitTemplates";
@@ -28,8 +30,17 @@ function newHabitId(): string {
  */
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user, profile } = useSession();
   const repo = useRepository();
   const setPetName = useSettingsStore((s) => s.setPetName);
+
+  // Already-onboarded users never see this flow again. Client-side gating is
+  // deliberate: guarding it in proxy.ts would cost a DB query per request to
+  // buy very little. Note: after handleFinish writes the flag, `profile` is
+  // not re-fetched this session, so this relies on a fresh load to fire.
+  useEffect(() => {
+    if (profile?.onboarding_completed) router.replace("/today");
+  }, [profile, router]);
 
   const [step, setStep] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
@@ -73,6 +84,17 @@ export default function OnboardingPage() {
     } catch {
       // Best-effort — never block onboarding completion on a repo error.
     }
+
+    // Persist completion so the gating effect above redirects on next load.
+    // RLS allows updating only your own row (profiles_update_own).
+    if (user) {
+      const supabase = createClient();
+      await supabase
+        .from("profiles")
+        .update({ onboarding_completed: true })
+        .eq("id", user.id);
+    }
+
     router.push("/today");
   }
 
