@@ -3,7 +3,6 @@ import { Suspense, useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { FieldError } from "@/components/auth/FieldError";
 import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
 import { createClient } from "@/lib/supabase/client";
@@ -73,17 +72,7 @@ function LoginForm() {
         Log in
       </h1>
 
-      <div className="mt-8">
-        <OAuthButtons redirectTo="/today" />
-      </div>
-
-      <div className="my-6 flex items-center gap-3" aria-hidden="true">
-        <div className="h-px flex-1 [background:rgb(var(--hairline)/0.1)]" />
-        <span className={eyebrow}>or</span>
-        <div className="h-px flex-1 [background:rgb(var(--hairline)/0.1)]" />
-      </div>
-
-      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+      <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
         <div>
           <label htmlFor="login-email" className={`${eyebrow} mb-2 block`}>
             Email

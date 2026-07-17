@@ -12,11 +12,6 @@ vi.mock("@/lib/supabase/client", () => ({
   })),
 }));
 
-// OAuthButtons (still stubbed, out of scope here) calls useRouter.
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
-}));
-
 // AuthShell needs window.matchMedia and the settings store; the page logic
 // under test does not. Render children straight through.
 vi.mock("@/components/auth/AuthShell", () => ({
