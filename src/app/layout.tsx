@@ -4,6 +4,7 @@ import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/state/theme";
 import { RepositoryProvider } from "@/state/RepositoryProvider";
+import { SessionProvider } from "@/state/SessionProvider";
 import { GlassFilterDefs } from "@/components/glass/GlassFilterDefs";
 import { Loader } from "@/components/brand/Loader";
 
@@ -33,11 +34,13 @@ export default function RootLayout({
         className={`${GeistSans.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} min-h-full flex flex-col`}
       >
         <ThemeProvider>
-          <RepositoryProvider>
-            <GlassFilterDefs />
-            <Loader />
-            {children}
-          </RepositoryProvider>
+          <SessionProvider>
+            <RepositoryProvider>
+              <GlassFilterDefs />
+              <Loader />
+              {children}
+            </RepositoryProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>
