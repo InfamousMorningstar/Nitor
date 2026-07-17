@@ -1,4 +1,14 @@
-@import "tailwindcss";
+/*
+ * source("../") scopes Tailwind's automatic content detection to src/ instead
+ * of the repo root. Without it Tailwind scans every non-ignored file, markdown
+ * included, and treats prose as class candidates: docs/superpowers/plans/
+ * 2026-07-14-streaks-habits-quotes.md documents the styling convention as
+ * `font-[family-name:var(--font-*)]`, and that literal wildcard generated
+ * `font-family: var(--font-*)` — invalid CSS that failed the parse of this
+ * whole stylesheet and 500'd every route via layout.tsx. Every real class
+ * lives under src/; only tests sit outside it and they need no generated CSS.
+ */
+@import "tailwindcss" source("../");
 
 /*
  * Nitor design tokens — MATTE system.
