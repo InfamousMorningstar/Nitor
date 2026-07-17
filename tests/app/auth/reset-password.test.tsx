@@ -103,6 +103,22 @@ describe("ResetPasswordPage", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("recovers the form if the update call throws (network-layer failure)", async () => {
+    updateUser.mockRejectedValue(new Error("network down"));
+    render(<ResetPasswordPage />);
+    fillForm("long-enough-pw");
+    submit();
+
+    // Generic message shown, button re-enabled, no navigation.
+    expect(
+      await screen.findByText("Something went wrong. Please try again."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Update password" }),
+    ).not.toBeDisabled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   // The user arrives with a valid recovery session and updateUser is not a
   // CAPTCHA-protected endpoint — this page must not mount a widget.
   it("mounts no Turnstile widget", () => {

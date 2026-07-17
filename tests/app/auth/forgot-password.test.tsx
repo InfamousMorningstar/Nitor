@@ -164,6 +164,23 @@ describe("ForgotPasswordPage", () => {
     expect(resetPasswordForEmail).not.toHaveBeenCalled();
   });
 
+  it("recovers the form if the reset call throws (network-layer failure)", async () => {
+    resetPasswordForEmail.mockRejectedValue(new Error("network down"));
+    render(<ForgotPasswordPage />);
+    fillEmail();
+    solveCaptcha();
+    submit();
+
+    // Generic message shown, button re-enabled, spent token reset (S11).
+    expect(
+      await screen.findByText("Something went wrong. Please try again."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Send reset link" }),
+    ).not.toBeDisabled();
+    expect(turnstile.reset).toHaveBeenCalledWith("widget-1");
+  });
+
   it("tells the user when the challenge itself cannot load (ad blocker)", () => {
     render(<ForgotPasswordPage />);
     failCaptcha();

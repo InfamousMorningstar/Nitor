@@ -40,21 +40,28 @@ export default function ForgotPasswordPage() {
     }
 
     setBusy(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      captchaToken,
-      redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
-    });
-    setBusy(false);
-    turnstile.current?.reset(); // single-use token (S11)
-
-    if (error) {
-      setServerError("Could not send the link. Try again.");
-      return;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        captchaToken,
+        redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
+      });
+      if (error) {
+        setServerError("Could not send the link. Try again.");
+        return;
+      }
+      // The existing copy already says "If that email exists…" — keep it. Never
+      // reveal whether an address has an account.
+      setSent(true);
+    } catch {
+      // resetPasswordForEmail returns { error } for AuthErrors; a throw is a
+      // non-auth (network-layer) failure. Keep it generic — and do NOT reveal
+      // account existence.
+      setServerError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+      turnstile.current?.reset(); // single-use token (S11) — reset on every outcome
     }
-    // The existing copy already says "If that email exists…" — keep it. Never
-    // reveal whether an address has an account.
-    setSent(true);
   }
 
   if (sent) {

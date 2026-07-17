@@ -88,11 +88,15 @@ export default function OnboardingPage() {
     // Persist completion so the gating effect above redirects on next load.
     // RLS allows updating only your own row (profiles_update_own).
     if (user) {
-      const supabase = createClient();
-      await supabase
-        .from("profiles")
-        .update({ onboarding_completed: true })
-        .eq("id", user.id);
+      try {
+        const supabase = createClient();
+        await supabase
+          .from("profiles")
+          .update({ onboarding_completed: true })
+          .eq("id", user.id);
+      } catch {
+        // Best-effort — never block onboarding completion on a write error.
+      }
     }
 
     router.push("/today");

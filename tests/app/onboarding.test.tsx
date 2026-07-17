@@ -82,6 +82,14 @@ describe("OnboardingPage", () => {
     expect(replace).toHaveBeenCalledWith("/today");
   });
 
+  it("still routes to /today when the profiles update throws (user not stranded)", async () => {
+    eq.mockReturnValueOnce(Promise.reject(new Error("network down")));
+    render(<OnboardingPage />);
+    walkToFinishAndClick();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/today"));
+  });
+
   it("does not touch profiles and still routes to /today when there is no user", async () => {
     session = { user: null, profile: null };
     render(<OnboardingPage />);

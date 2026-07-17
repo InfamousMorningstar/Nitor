@@ -31,16 +31,22 @@ export default function ResetPasswordPage() {
     if (passwordError(password) || password !== confirmPassword) return;
 
     setBusy(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password });
-    setBusy(false);
-
-    if (error) {
-      setServerError(error.message);
-      return;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        setServerError(error.message);
+        return;
+      }
+      // The recovery session is a real signed-in session — land in the app.
+      router.push("/today");
+    } catch {
+      // updateUser returns { error } for AuthErrors; a throw is a non-auth
+      // (network-layer) failure.
+      setServerError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
     }
-    // The recovery session is a real signed-in session — land in the app.
-    router.push("/today");
   }
 
   return (
