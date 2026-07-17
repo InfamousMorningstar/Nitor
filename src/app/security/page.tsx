@@ -110,6 +110,12 @@ const GROUPS: Group[] = [
         status: "active",
       },
       {
+        code: "AI audit",
+        title: "Adversarial review by a frontier AI model",
+        body: "The identity stack was audited end to end with Claude Fable 5: every control on this page re-verified against the code, the full sign-up, sign-in and recovery flows driven in a real browser against the live backend — including attempted open-redirect and cross-user writes — and the issues it found fixed before merge. This complements, and does not replace, the independent human audit on our roadmap.",
+        status: "active",
+      },
+      {
         code: "Advisors",
         title: "Clean database advisors",
         body: "Supabase's automated security advisors report zero findings against our database configuration.",
@@ -195,10 +201,15 @@ export default function SecurityPage() {
           <p className={eyebrow}>Beta — read this</p>
           <p className="mt-3 max-w-[70ch] text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
             Nitor is in active development. This page describes the security we
-            have built for identity and sessions today. It is{" "}
+            have built for identity and sessions today, following current
+            platform security guidance: signature-verified sessions, new-generation
+            least-privilege API keys, and database-enforced row isolation. Each
+            release of the identity stack is additionally reviewed adversarially
+            with Claude Fable 5, a frontier AI model, which re-runs its own tests
+            against the live app. It is{" "}
             <span className="[color:rgb(var(--text))]">not</span> independently
-            audited or certified yet — independent security review and encrypted,
-            server-side data storage are part of our path to general
+            audited or certified yet — independent human security review and
+            encrypted, server-side data storage are part of our path to general
             availability, and we will update this page as each one lands.
           </p>
         </section>
