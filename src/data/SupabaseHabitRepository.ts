@@ -154,10 +154,22 @@ export class SupabaseHabitRepository implements HabitRepository {
     return logFromRow(data as LogRow);
   }
 
+  /**
+   * The conflict target is tenant-qualified, matching habits' (user_id, id)
+   * key. Arbitrating on `id` alone would resolve against EVERY tenant's rows —
+   * so a habit id another user already holds would collide with a row RLS
+   * makes invisible here, and this user's own habit could never be created.
+   *
+   * `user_id` is named in the arbiter but deliberately absent from the payload:
+   * it arrives via DEFAULT auth.uid() and is pinned by the insert with-check,
+   * and Postgres evaluates ON CONFLICT inference against the fully-defaulted
+   * row. scripts/verify-rls.ts proves this against the live project rather
+   * than leaving it as an assumption.
+   */
   async upsertHabit(habit: Habit): Promise<Habit> {
     const { data, error } = await this.client
       .from("habits")
-      .upsert(habitToRow(habit), { onConflict: "id" })
+      .upsert(habitToRow(habit), { onConflict: "user_id,id" })
       .select()
       .single();
 

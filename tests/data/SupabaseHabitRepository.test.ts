@@ -207,7 +207,7 @@ describe("SupabaseHabitRepository", () => {
     expect(queries[4].calls).toEqual([
       {
         method: "upsert",
-        args: [habitRow, { onConflict: "id" }],
+        args: [habitRow, { onConflict: "user_id,id" }],
       },
       { method: "select", args: [] },
       { method: "single", args: [] },
@@ -320,7 +320,7 @@ describe("SupabaseHabitRepository", () => {
           start_date: null,
           sort_order: null,
         },
-        { onConflict: "id" },
+        { onConflict: "user_id,id" },
       ],
     });
     expect(queries[1].calls).toContainEqual({

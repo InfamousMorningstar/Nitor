@@ -101,8 +101,31 @@ async function signIn(email: string, password: string): Promise<string> {
   return body.access_token as string;
 }
 
-async function deleteUser(id: string): Promise<void> {
-  await fetch(`${BASE}/auth/v1/admin/users/${id}`, { method: "DELETE", headers: adminHeaders });
+/**
+ * Cleanup must be loud. A silently-failed admin delete leaves a real user (and
+ * its habits and logs) behind in the project, and the next run's "B sees zero
+ * of A's rows" assertions would be measuring a dirtier database than they
+ * claim to. Returns false rather than throwing, so one failure cannot skip the
+ * remaining deletes.
+ */
+async function deleteUser(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/auth/v1/admin/users/${id}`, {
+      method: "DELETE",
+      headers: adminHeaders,
+    });
+    if (!res.ok) {
+      // The id is a random per-run uuid, not a secret. Nothing else is logged.
+      console.error(`CLEANUP FAILED: delete user ${id}: HTTP ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (e: unknown) {
+    console.error(
+      `CLEANUP FAILED: delete user ${id}: ${e instanceof Error ? e.message : String(e)}`,
+    );
+    return false;
+  }
 }
 
 const checks: string[] = [];
@@ -117,10 +140,19 @@ async function main(): Promise<void> {
   const bEmail = `rls-b-${stamp}@example.com`;
   const pw = `Test-passphrase-${stamp}!`;
 
-  const aId = await createUser(aEmail, pw);
-  const bId = await createUser(bEmail, pw);
+  // Every user is registered for cleanup the instant it exists, so an
+  // exception between the two createUser calls cannot orphan the first one.
+  const createdUsers: string[] = [];
+  let cleanupOk = true;
+  async function createTrackedUser(email: string, password: string): Promise<string> {
+    const id = await createUser(email, password);
+    createdUsers.push(id);
+    return id;
+  }
 
   try {
+    const aId = await createTrackedUser(aEmail, pw);
+    const bId = await createTrackedUser(bEmail, pw);
     const aJwt = await signIn(aEmail, pw);
     const bJwt = await signIn(bEmail, pw);
     assert(aId !== bId, "A and B are distinct users");
@@ -154,6 +186,47 @@ async function main(): Promise<void> {
     const [aInserted] = rows(r.body);
     assert(aInserted.user_id === aId, "A's habit.user_id defaulted to A (server-owned)");
     ok("A inserts a habit; user_id defaults to A without being sent");
+
+    // The habits upsert arbiter, exercised exactly as SupabaseHabitRepository
+    // does it: on_conflict names user_id, but the body NEVER sends user_id —
+    // it arrives only via DEFAULT auth.uid(). Postgres evaluates the ON
+    // CONFLICT inference against the fully-defaulted tuple, so an arbiter
+    // column absent from the payload is legal; this asserts that rather than
+    // assuming it. Valid against the CURRENT schema because habits already
+    // carries unique (user_id, id), which is what makes the repository's
+    // switch to onConflict "user_id,id" independently deployable ahead of the
+    // primary-key change.
+    r = await rest("/habits?on_conflict=user_id,id", {
+      method: "POST",
+      headers: {
+        ...userHeaders(aJwt),
+        Prefer: "return=representation,resolution=merge-duplicates",
+      },
+      body: JSON.stringify({ ...aHabit, name: "Read (revised)" }),
+    });
+    assert(
+      r.status === 200 || r.status === 201,
+      `A upserts its habit on the (user_id, id) arbiter: ${r.status} ${JSON.stringify(r.body)}`,
+    );
+    const [aUpserted] = rows(r.body);
+    assert(
+      aUpserted.user_id === aId && aUpserted.name === "Read (revised)",
+      `the update branch ran and user_id stayed A's (got ${JSON.stringify(aUpserted)})`,
+    );
+    assert(
+      rows(r.body).length === 1,
+      "the arbiter updated in place rather than inserting a duplicate",
+    );
+
+    // Restore the name so the field-fidelity assertions below still describe
+    // the row they were written for.
+    r = await rest(`/habits?id=eq.${aHabitId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ name: "Read" }),
+    });
+    assert(r.status === 200, `restore A's habit name: ${r.status}`);
+    ok("habits upsert resolves on (user_id, id) with user_id never sent by the client");
 
     // Numeric log, backdated, with freeze set.
     const aLogId = `${aHabitId}_2026-07-02`;
@@ -203,6 +276,35 @@ async function main(): Promise<void> {
     assert(r.status === 201, `B insert own habit: ${r.status} ${JSON.stringify(r.body)}`);
     assert(rows(r.body)[0].user_id === bId, "B's habit.user_id defaulted to B");
     ok("B inserts its own habit (positive control for the isolation checks)");
+
+    // B logs against its OWN habit. This is the control the cross-tenant
+    // rejections below need: without it, "B's log insert failed" would be
+    // consistent with B being unable to write logs at all.
+    const bLogId = `${bHabitId}_2026-07-02`;
+    r = await rest("/logs", {
+      method: "POST",
+      headers: { ...userHeaders(bJwt), Prefer: "return=representation" },
+      body: JSON.stringify({
+        id: bLogId,
+        habit_id: bHabitId,
+        date: "2026-07-02",
+        value: 7,
+        is_grace_day: false,
+        is_freeze: false,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    assert(r.status === 201, `B insert own log: ${r.status} ${JSON.stringify(r.body)}`);
+    assert(rows(r.body)[0].user_id === bId, "B's log.user_id defaulted to B");
+
+    r = await rest(`/logs?habit_id=eq.${bHabitId}&select=*`, { headers: userHeaders(bJwt) });
+    assert(r.status === 200, `B read own log: ${r.status}`);
+    const bOwnLogs = rows(r.body);
+    assert(
+      bOwnLogs.length === 1 && bOwnLogs[0].value === 7,
+      `B reads back exactly its own log (got ${JSON.stringify(r.body)})`,
+    );
+    ok("B creates and reads a log on its own habit (log-write positive control)");
 
     // ------------------------------------------------------------- A fidelity
     r = await rest(`/habits?id=eq.${aHabitId}&select=*`, { headers: userHeaders(aJwt) });
@@ -279,8 +381,23 @@ async function main(): Promise<void> {
 
     r = await rest("/logs?select=*", { headers: userHeaders(bJwt) });
     assert(r.status === 200, `B unscoped log read: ${r.status}`);
-    assert(rows(r.body).length === 0, "B reads zero logs (A's two are hidden)");
-    ok("B cannot read A's habit by id, and sees none of A's logs");
+    const bVisibleLogs = rows(r.body);
+    // Stronger than "B reads zero logs": B owns one, so this proves the read
+    // works AND is scoped, rather than the endpoint merely returning nothing.
+    assert(
+      bVisibleLogs.length === 1 && bVisibleLogs[0].id === bLogId,
+      `B's unscoped log read returns exactly B's own log (got ${JSON.stringify(bVisibleLogs)})`,
+    );
+    assert(
+      bVisibleLogs.every((log) => log.habit_id !== aHabitId && log.user_id === bId),
+      "none of the logs B can see belong to A",
+    );
+
+    // And targeting A's logs directly yields nothing.
+    r = await rest(`/logs?habit_id=eq.${aHabitId}&select=*`, { headers: userHeaders(bJwt) });
+    assert(r.status === 200, `B targeted read of A's logs: ${r.status}`);
+    assert(rows(r.body).length === 0, "B reading A's logs by habit_id returns zero rows");
+    ok("B cannot read A's habit or logs, while reading its own log fine");
 
     // -------------------------------------------------- Isolation: forged writes
     // The insert with-check, exercised directly: B claims A's user_id.
@@ -360,7 +477,292 @@ async function main(): Promise<void> {
     // A must not see anything of B's either — isolation is symmetric.
     r = await rest("/habits?select=*", { headers: userHeaders(aJwt) });
     assert(!ids(r.body).includes(bHabitId), "A does not see B's habit (isolation is symmetric)");
-    ok("isolation is symmetric: A sees none of B's rows");
+
+    r = await rest(`/habits?id=eq.${bHabitId}&select=*`, { headers: userHeaders(aJwt) });
+    assert(
+      r.status === 200 && rows(r.body).length === 0,
+      "A reading B's habit by exact id returns zero rows",
+    );
+    r = await rest(`/logs?habit_id=eq.${bHabitId}&select=*`, { headers: userHeaders(aJwt) });
+    assert(
+      r.status === 200 && rows(r.body).length === 0,
+      "A reading B's logs by habit_id returns zero rows",
+    );
+
+    // A mutating and deleting B's rows: zero rows affected, both directions.
+    r = await rest(`/habits?id=eq.${bHabitId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ name: "hacked by A" }),
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 0,
+      `A's PATCH of B's habit affects zero rows (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    r = await rest(`/habits?id=eq.${bHabitId}`, {
+      method: "DELETE",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 0,
+      `A's DELETE of B's habit affects zero rows (got ${r.status})`,
+    );
+    r = await rest(`/logs?habit_id=eq.${bHabitId}`, {
+      method: "DELETE",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 0,
+      `A's DELETE of B's logs affects zero rows (got ${r.status})`,
+    );
+
+    // B's data survived A's attempts intact — the mirror of the check above.
+    r = await rest(`/habits?id=eq.${bHabitId}&select=*`, { headers: userHeaders(bJwt) });
+    const [bAfter] = rows(r.body);
+    assert(bAfter !== undefined, "B's habit still exists after A's DELETE attempt");
+    assert(
+      bAfter.name === "renamed by B",
+      `B's habit name is B's own last write, not A's (got ${String(bAfter.name)})`,
+    );
+    r = await rest(`/logs?habit_id=eq.${bHabitId}&select=*`, { headers: userHeaders(bJwt) });
+    assert(rows(r.body).length === 1, "B's log survives A's DELETE attempt");
+    ok("isolation is symmetric: A can neither read, update, nor delete B's rows");
+
+    // ------------------------------------------- Cross-tenant FK: the main event
+    // Postgres validates foreign keys with RLS BYPASSED. With a single-column
+    // logs.habit_id -> habits(id) reference, this insert SUCCEEDED: B ended up
+    // owning a log hanging off A's habit, and FK-accept vs FK-reject leaked
+    // whether a guessed habit id exists. The composite (user_id, habit_id) ->
+    // habits(user_id, id) reference makes it structurally impossible — the row
+    // (B, A's habit) simply is not in habits.
+    r = await rest("/logs", {
+      method: "POST",
+      headers: { ...userHeaders(bJwt), Prefer: "return=representation" },
+      body: JSON.stringify({
+        id: `${aHabitId}_2026-07-09`,
+        habit_id: aHabitId,
+        date: "2026-07-09",
+        value: 1,
+        is_grace_day: false,
+        is_freeze: false,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    assert(
+      r.status === 409 || r.status === 400,
+      `B's log referencing A's habit is rejected (expected 409/400, got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    ok("B cannot create a log referencing A's habit (composite FK rejects it)");
+
+    // The oracle is gone too: a habit id that exists for NOBODY must be
+    // rejected the same way as one that exists for A. Same status, so FK
+    // behaviour reveals nothing about A's data.
+    const ghostHabitId = `h_${stamp}_does_not_exist`;
+    const oracle = await rest("/logs", {
+      method: "POST",
+      headers: { ...userHeaders(bJwt), Prefer: "return=representation" },
+      body: JSON.stringify({
+        id: `${ghostHabitId}_2026-07-09`,
+        habit_id: ghostHabitId,
+        date: "2026-07-09",
+        value: 1,
+        is_grace_day: false,
+        is_freeze: false,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    assert(
+      oracle.status === r.status,
+      `existent-but-foreign and nonexistent habit ids fail identically (${r.status} vs ${oracle.status}) — otherwise FK response is an existence oracle`,
+    );
+    ok("a foreign habit id and a nonexistent one are rejected identically (no existence oracle)");
+
+    // A's rows are untouched by the attempts: no ghost log landed.
+    r = await rest(`/logs?habit_id=eq.${aHabitId}&select=*`, { headers: userHeaders(aJwt) });
+    assert(r.status === 200, `A re-read logs after B's FK attempts: ${r.status}`);
+    assert(
+      rows(r.body).length === 2,
+      `A still sees exactly its own 2 logs, no ghost row (got ${rows(r.body).length})`,
+    );
+    ok("no cross-tenant ghost log exists on A's habit");
+
+    // ------------------------------------------------------- Id preemption
+    // Log ids are the deterministic `${habitId}_${date}`. While logs.id was
+    // GLOBALLY primary, B could insert that exact string and A's later write
+    // for the same date would fail on the primary key — a targeted denial of
+    // service, and a conflict on an index that is NOT the declared
+    // (user_id, habit_id, date) upsert arbiter. With the key now
+    // (user_id, id), B claiming the string affects only B's own tenant.
+    const contestedId = `${aHabitId}_2026-07-10`;
+    r = await rest("/logs", {
+      method: "POST",
+      headers: { ...userHeaders(bJwt), Prefer: "return=representation" },
+      body: JSON.stringify({
+        id: contestedId,
+        habit_id: bHabitId, // B's own habit — the FK is satisfied
+        date: "2026-07-10",
+        value: 99,
+        is_grace_day: false,
+        is_freeze: false,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    assert(
+      r.status === 201,
+      `B may use that id string inside its own tenant: ${r.status} ${JSON.stringify(r.body)}`,
+    );
+
+    // A now writes the id B just claimed. This is the assertion that would
+    // have failed before the fix.
+    //
+    // ?on_conflict= is load-bearing: without it PostgREST arbitrates on the
+    // PRIMARY KEY, so this would exercise (user_id, id) and silently fail to
+    // test the target logValue() actually declares. The query string mirrors
+    // SupabaseHabitRepository's `onConflict: "user_id,habit_id,date"`.
+    r = await rest("/logs?on_conflict=user_id,habit_id,date", {
+      method: "POST",
+      headers: {
+        ...userHeaders(aJwt),
+        Prefer: "return=representation,resolution=merge-duplicates",
+      },
+      body: JSON.stringify({
+        id: contestedId,
+        habit_id: aHabitId,
+        date: "2026-07-10",
+        value: 5,
+        is_grace_day: false,
+        is_freeze: false,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    assert(
+      r.status === 201 || r.status === 200,
+      `A can still write the id B claimed: ${r.status} ${JSON.stringify(r.body)}`,
+    );
+    const [aContested] = rows(r.body);
+    assert(
+      aContested.value === 5 && aContested.user_id === aId,
+      `A's row holds A's value, not B's (got ${JSON.stringify(aContested)})`,
+    );
+
+    // And the upsert path itself still resolves on the declared arbiter,
+    // updating in place rather than raising a duplicate-key error.
+    r = await rest("/logs?on_conflict=user_id,habit_id,date", {
+      method: "POST",
+      headers: {
+        ...userHeaders(aJwt),
+        Prefer: "return=representation,resolution=merge-duplicates",
+      },
+      body: JSON.stringify({
+        id: contestedId,
+        habit_id: aHabitId,
+        date: "2026-07-10",
+        value: 11,
+        is_grace_day: false,
+        is_freeze: false,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    assert(
+      (r.status === 200 || r.status === 201) && rows(r.body)[0].value === 11,
+      `A's re-upsert of the same date updates in place: ${r.status} ${JSON.stringify(r.body)}`,
+    );
+    ok("B cannot preempt A's deterministic log id; A's write and re-upsert both succeed");
+
+    // Proof that the DECLARED arbiter is the one doing the work, not the
+    // primary key. The incoming id differs from the stored row's id while
+    // (user_id, habit_id, date) still matches. Arbitrating on (user_id, id)
+    // would find no conflict and INSERT a second row for the same date;
+    // arbitrating on (user_id, habit_id, date) updates the existing row and
+    // rewrites its id. The row count is what separates the two outcomes.
+    const renamedId = `${aHabitId}_2026-07-10_v2`;
+    r = await rest("/logs?on_conflict=user_id,habit_id,date", {
+      method: "POST",
+      headers: {
+        ...userHeaders(aJwt),
+        Prefer: "return=representation,resolution=merge-duplicates",
+      },
+      body: JSON.stringify({
+        id: renamedId,
+        habit_id: aHabitId,
+        date: "2026-07-10",
+        value: 13,
+        is_grace_day: false,
+        is_freeze: false,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    assert(
+      r.status === 200 || r.status === 201,
+      `A's upsert with a differing id resolves on the declared arbiter: ${r.status} ${JSON.stringify(r.body)}`,
+    );
+
+    r = await rest(`/logs?habit_id=eq.${aHabitId}&date=eq.2026-07-10&select=*`, {
+      headers: userHeaders(aJwt),
+    });
+    const dayRows = rows(r.body);
+    assert(
+      dayRows.length === 1,
+      `exactly one log survives for that date — the arbiter updated rather than inserted (got ${dayRows.length}: ${JSON.stringify(dayRows)})`,
+    );
+    assert(
+      dayRows[0].id === renamedId && dayRows[0].value === 13,
+      `the surviving row carries the new id and value (got ${JSON.stringify(dayRows[0])})`,
+    );
+    ok("upserts resolve on the declared (user_id, habit_id, date) arbiter, not the primary key");
+
+    // --------------------------------------------- Habit-id preemption
+    // The habit-level mirror of the log-id check above. While habits.id was
+    // GLOBALLY primary, B could insert a habit carrying an id A was about to
+    // use; A's upsert then collided with a row RLS made invisible to A, so A's
+    // own habit could never be created — a cross-tenant denial of service, and
+    // an existence oracle on habit ids. With the key now (user_id, id), B's
+    // claim is confined to B's own tenant.
+    const contestedHabitId = `h_${stamp}_contested`;
+    r = await rest("/habits", {
+      method: "POST",
+      headers: { ...userHeaders(bJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ ...aHabit, id: contestedHabitId, name: "B claims the id" }),
+    });
+    assert(
+      r.status === 201,
+      `B may use that habit id inside its own tenant: ${r.status} ${JSON.stringify(r.body)}`,
+    );
+
+    // A now creates its own habit under the id B just claimed. This is the
+    // assertion that would have failed before the fix.
+    r = await rest("/habits?on_conflict=user_id,id", {
+      method: "POST",
+      headers: {
+        ...userHeaders(aJwt),
+        Prefer: "return=representation,resolution=merge-duplicates",
+      },
+      body: JSON.stringify({ ...aHabit, id: contestedHabitId, name: "A's real habit" }),
+    });
+    assert(
+      r.status === 200 || r.status === 201,
+      `A can still create the habit id B claimed: ${r.status} ${JSON.stringify(r.body)}`,
+    );
+    const [aContestedHabit] = rows(r.body);
+    assert(
+      aContestedHabit.user_id === aId && aContestedHabit.name === "A's real habit",
+      `A's row carries A's values, not B's (got ${JSON.stringify(aContestedHabit)})`,
+    );
+
+    // Each tenant sees exactly its own version of that id, and only its own.
+    r = await rest(`/habits?id=eq.${contestedHabitId}&select=*`, { headers: userHeaders(aJwt) });
+    const aSees = rows(r.body);
+    assert(
+      aSees.length === 1 && aSees[0].name === "A's real habit",
+      `A sees only its own contested habit (got ${JSON.stringify(aSees)})`,
+    );
+    r = await rest(`/habits?id=eq.${contestedHabitId}&select=*`, { headers: userHeaders(bJwt) });
+    const bSees = rows(r.body);
+    assert(
+      bSees.length === 1 && bSees[0].name === "B claims the id",
+      `B still sees its own, untouched by A's write (got ${JSON.stringify(bSees)})`,
+    );
+    ok("B cannot preempt a habit id; both tenants hold their own row under it");
 
     // ------------------------------------------------------------------- Anon
     r = await rest("/habits?select=*", { headers: anonHeaders });
@@ -387,12 +789,24 @@ async function main(): Promise<void> {
     ok("anon reads zero rows and cannot insert");
 
     console.log(`\n${checks.length} checks passed.`);
-    console.log("VERIFY-RLS: PASS");
   } finally {
-    // Cascades remove both users' habits and logs.
-    await deleteUser(aId);
-    await deleteUser(bId);
+    // Cascades remove both users' habits and logs. Every registered user is
+    // attempted even if an earlier delete fails.
+    const results = await Promise.all(createdUsers.map(deleteUser));
+    cleanupOk = results.every(Boolean);
   }
+
+  // Deliberately AFTER the finally block. Printing PASS inside the try meant a
+  // run that leaked live test users still reported PASS and exited 0 — the
+  // exact silent failure deleteUser() was made loud to prevent. A leaked user
+  // also poisons the next run's "sees zero of A's rows" assertions, so this is
+  // a real failure, not a cosmetic one.
+  if (!cleanupOk) {
+    throw new Error(
+      "checks passed but cleanup failed — test users remain in the project and need manual removal",
+    );
+  }
+  console.log("VERIFY-RLS: PASS");
 }
 
 main().catch((e: unknown) => {
