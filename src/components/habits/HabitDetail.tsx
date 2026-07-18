@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Habit, Log } from "@/domain/types";
 import type { LogInput } from "@/data/repository";
 import { HabitForm, type HabitFormInitial } from "@/components/habits/HabitForm";
@@ -44,6 +44,11 @@ export interface HabitDetailProps {
  */
 export function HabitDetail({ habit, logs, onLog, onSaved }: HabitDetailProps) {
   const [tab, setTab] = useState<Tab>("overview");
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
+    overview: null,
+    edit: null,
+    history: null,
+  });
   const now = today();
 
   const streak = useMemo(() => computeStreak(habit, logs, now), [habit, logs, now]);
@@ -59,21 +64,21 @@ export function HabitDetail({ habit, logs, onLog, onSaved }: HabitDetailProps) {
       targetValue: habit.targetValue ?? undefined,
       unit: habit.unit,
       schedule: habit.schedule,
+      category: habit.category,
+      strictness: habit.strictness,
+      graceDaysPerWeek: habit.graceDaysPerWeek,
     }),
     [habit]
   );
 
   // HabitForm always builds a brand-new Habit (fresh id, createdAt, and the
-  // fields it has no UI for). Re-attach the original identity + the fields
-  // this form can't edit so "Edit" behaves like an update, not a duplicate.
+  // fields it has no UI for). Re-attach the original identity + remaining
+  // non-editable fields so "Edit" behaves like an update, not a duplicate.
   function handleEditSubmit(draft: Habit) {
     onSaved({
       ...draft,
       id: habit.id,
       createdAt: habit.createdAt,
-      category: habit.category,
-      strictness: habit.strictness,
-      graceDaysPerWeek: habit.graceDaysPerWeek,
       archived: habit.archived,
       startDate: habit.startDate,
       order: habit.order,
@@ -82,6 +87,23 @@ export function HabitDetail({ habit, logs, onLog, onSaved }: HabitDetailProps) {
 
   const needsNumber = habit.type === "count" || habit.type === "duration" || habit.type === "quantified";
   const target = habit.targetValue ?? 1;
+
+  function selectTab(nextTab: Tab) {
+    setTab(nextTab);
+    tabRefs.current[nextTab]?.focus();
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, currentTab: Tab) {
+    const currentIndex = TABS.findIndex(({ id }) => id === currentTab);
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % TABS.length;
+    if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = TABS.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    selectTab(TABS[nextIndex].id);
+  }
 
   return (
     <div>
@@ -93,10 +115,17 @@ export function HabitDetail({ habit, logs, onLog, onSaved }: HabitDetailProps) {
         {TABS.map(({ id, label }) => (
           <button
             key={id}
+            ref={(node) => {
+              tabRefs.current[id] = node;
+            }}
             type="button"
             role="tab"
+            id={`habit-detail-tab-${id}`}
+            aria-controls={`habit-detail-panel-${id}`}
             aria-selected={tab === id}
+            tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}
+            onKeyDown={(event) => handleTabKeyDown(event, id)}
             className={
               `${eyebrow} border-b-2 px-1 pb-3 transition-colors duration-[var(--dur-micro)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] ` +
               (tab === id
@@ -110,7 +139,13 @@ export function HabitDetail({ habit, logs, onLog, onSaved }: HabitDetailProps) {
       </div>
 
       {tab === "overview" && (
-        <div className="space-y-6">
+        <div
+          id="habit-detail-panel-overview"
+          role="tabpanel"
+          aria-labelledby="habit-detail-tab-overview"
+          tabIndex={0}
+          className="space-y-6"
+        >
           <div>
             <p className={`${eyebrow} mb-2`}>Last 13 weeks</p>
             <MiniHeatmap habit={habit} logs={logs} />
@@ -140,11 +175,23 @@ export function HabitDetail({ habit, logs, onLog, onSaved }: HabitDetailProps) {
       )}
 
       {tab === "edit" && (
-        <HabitForm initial={editInitial} submitLabel="Save changes" onSubmit={handleEditSubmit} />
+        <div
+          id="habit-detail-panel-edit"
+          role="tabpanel"
+          aria-labelledby="habit-detail-tab-edit"
+          tabIndex={0}
+        >
+          <HabitForm initial={editInitial} submitLabel="Save changes" onSubmit={handleEditSubmit} />
+        </div>
       )}
 
       {tab === "history" && (
-        <div>
+        <div
+          id="habit-detail-panel-history"
+          role="tabpanel"
+          aria-labelledby="habit-detail-tab-history"
+          tabIndex={0}
+        >
           <p className={`${eyebrow} mb-3`}>Last {BACKDATE_DAYS} days</p>
           <ul className="flex flex-col gap-2">
             {editableDays(habit, now).map(({ date, scheduled }) => {

@@ -105,7 +105,7 @@ export default function StatsPage() {
               onClick={() => setRange(r.key)}
               className={`${mono} rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.06em] transition-colors duration-[var(--dur-micro)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] ${
                 range === r.key
-                  ? "[background:rgb(var(--accent))] [color:rgb(var(--bg))]"
+                  ? "[background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))]"
                   : "[color:rgb(var(--text-mute))] hover:[color:rgb(var(--text-dim))]"
               }`}
             >
@@ -154,6 +154,31 @@ export default function StatsPage() {
 
           <section>
             <h2 className="mb-3 text-sm font-medium [color:rgb(var(--text))]">Per habit</h2>
+            {sparkrows.length > 0 && (
+              <table className="sr-only">
+                <caption>Per-habit completion summary</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Habit</th>
+                    <th scope="col">Current streak</th>
+                    <th scope="col">Best streak</th>
+                    <th scope="col">Completion %</th>
+                    <th scope="col">Recent daily completions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sparkrows.map(({ habit, streak, pct, sparkline }) => (
+                    <tr key={habit.id}>
+                      <th scope="row">{habit.name}</th>
+                      <td>{streak.current}</td>
+                      <td>{streak.longest}</td>
+                      <td>{pct}</td>
+                      <td>{sparkline.join(", ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
             {sparkrows.length === 0 ? (
               <p className="[color:rgb(var(--text-dim))]">No habits yet.</p>
             ) : (
@@ -174,6 +199,7 @@ export default function StatsPage() {
                     <span
                       className={`${mono} shrink-0 text-right text-[11px] [color:rgb(var(--text-mute))]`}
                       title="Current / best streak"
+                      aria-label={`Current streak ${streak.current} days; best streak ${streak.longest} days`}
                     >
                       <span className="[color:rgb(var(--accent))]">{streak.current}</span>
                       <span> / {streak.longest}</span>

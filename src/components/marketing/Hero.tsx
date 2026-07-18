@@ -117,7 +117,7 @@ export function Hero() {
           <div className="mt-9 flex flex-wrap items-center gap-4">
             <Link
               href="/signup"
-              className="rounded-full px-6 py-3.5 text-[15px] font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.98] [background:rgb(var(--accent))] [color:rgb(var(--bg))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+              className="rounded-full px-6 py-3.5 text-[15px] font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.98] [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
             >
               Start free
             </Link>

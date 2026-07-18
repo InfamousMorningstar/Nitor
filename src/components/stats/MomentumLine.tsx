@@ -89,7 +89,7 @@ export function MomentumLine({ data, goal = 80 }: MomentumLineProps) {
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           width="100%"
           height={HEIGHT}
-          className="block touch-none"
+          className="block touch-none rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
           tabIndex={0}
           onMouseMove={(e) => handlePointer(e.clientX)}
           onMouseLeave={() => setActiveIdx(null)}
@@ -100,8 +100,14 @@ export function MomentumLine({ data, goal = 80 }: MomentumLineProps) {
           onBlur={() => setActiveIdx(null)}
           onKeyDown={(e) => {
             if (activeIdx === null) return;
-            if (e.key === "ArrowLeft") setActiveIdx(Math.max(0, activeIdx - 1));
-            if (e.key === "ArrowRight") setActiveIdx(Math.min(points.length - 1, activeIdx + 1));
+            if (e.key === "ArrowLeft") {
+              e.preventDefault();
+              setActiveIdx(Math.max(0, activeIdx - 1));
+            }
+            if (e.key === "ArrowRight") {
+              e.preventDefault();
+              setActiveIdx(Math.min(points.length - 1, activeIdx + 1));
+            }
           }}
         >
           {[0, 50, 100].map((v) => {

@@ -89,7 +89,7 @@ export function WeekdayBars({ data }: WeekdayBarsProps) {
                   tabIndex={0}
                   role="img"
                   aria-label={`${LABELS[d.weekday]}: ${d.pct}% completion`}
-                  className="outline-none cursor-default"
+                  className="outline-none cursor-default focus-visible:[stroke:rgb(var(--text))] focus-visible:[stroke-width:2px]"
                   onMouseEnter={() => setHover(i)}
                   onMouseLeave={() => setHover(null)}
                   onFocus={() => setHover(i)}

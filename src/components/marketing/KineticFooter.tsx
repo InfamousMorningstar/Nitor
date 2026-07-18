@@ -86,7 +86,7 @@ function NewsletterForm() {
           <button
             type="submit"
             aria-label="Subscribe"
-            className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg transition-colors duration-[var(--dur-micro)] [background:rgb(var(--accent))] [color:rgb(var(--bg))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+            className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg transition-colors duration-[var(--dur-micro)] [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
           >
             &rarr;
           </button>

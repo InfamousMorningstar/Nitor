@@ -25,10 +25,11 @@ All colors are space-separated RGB triplets, composed as `rgb(var(--x) / a)`.
 | `--surface-2`   | `23 23 26`      | `#17171A` | hover / elevated               |
 | `--text`        | `237 237 239`   | `#EDEDEF` | primary text                   |
 | `--text-dim`    | `161 161 166`   | `#A1A1A6` | secondary text                 |
-| `--text-mute`   | `110 110 118`   | `#6E6E76` | tertiary / disabled            |
+| `--text-mute`   | `130 130 138`   | `#82828A` | tertiary / disabled, AA on dark surfaces |
 | `--hairline`    | `255 255 255`   | —         | borders, use at `/0.08`        |
 | `--accent`      | `245 176 39`    | `#F5B027` | signature amber                |
 | `--accent-glow` | `255 194 75`    | `#FFC24B` | accent hover/emphasis variant  |
+| `--accent-contrast` | `10 10 11`  | `#0A0A0B` | text/icons on accent fills     |
 
 ### Light (`[data-theme="light"]`) — warm paper, not sterile white
 
@@ -39,10 +40,11 @@ All colors are space-separated RGB triplets, composed as `rgb(var(--x) / a)`.
 | `--surface-2`   | `255 255 255`   | `#FFFFFF` | tiny inset accents only — avoid large pure-white fields |
 | `--text`        | `23 23 26`      | —         | primary text                   |
 | `--text-dim`    | `90 90 96`      | —         | secondary text                 |
-| `--text-mute`   | `130 130 138`   | —         | tertiary / disabled            |
+| `--text-mute`   | `105 105 112`   | `#696970` | tertiary / disabled, AA on paper surfaces |
 | `--hairline`    | `16 16 20`      | —         | borders, use at `/0.10`        |
-| `--accent`      | `201 132 8`     | `#C98408` | deepened amber for contrast    |
-| `--accent-glow` | `217 147 10`    | `#D9930A` | accent hover/emphasis variant  |
+| `--accent`      | `154 96 5`      | `#9A6005` | deepened amber for AA contrast |
+| `--accent-glow` | `145 88 0`      | `#915800` | AA accent hover variant        |
+| `--accent-contrast` | `255 255 255` | `#FFFFFF` | text/icons on accent fills   |
 
 Dark is the default theme (`:root` = dark values); `[data-theme="light"]`
 overrides.

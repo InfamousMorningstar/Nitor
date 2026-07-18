@@ -4,6 +4,7 @@ import { AppFrame } from "@/components/app/AppFrame";
 import { HabitDrawer } from "@/components/habits/HabitDrawer";
 import { HabitForm, type HabitFormInitial } from "@/components/habits/HabitForm";
 import { HabitDetail } from "@/components/habits/HabitDetail";
+import { ConfirmDeleteDialog } from "@/components/habits/ConfirmDeleteDialog";
 import { FlameIcon, scheduleLabel } from "@/components/today/HabitRow";
 import { useHabits } from "@/state/useHabits";
 import { useRepository } from "@/state/RepositoryProvider";
@@ -48,6 +49,7 @@ export default function HabitsPage() {
   const [confirmText, setConfirmText] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState("");
 
   const now = today();
 
@@ -76,6 +78,15 @@ export default function HabitsPage() {
     () => (detailHabit ? logs.filter((l) => l.habitId === detailHabit.id) : []),
     [logs, detailHabit]
   );
+  const confirmingHabit = useMemo(
+    () => (confirmingId ? habits.find((habit) => habit.id === confirmingId) ?? null : null),
+    [confirmingId, habits]
+  );
+
+  function cancelDelete() {
+    setConfirmingId(null);
+    setConfirmText("");
+  }
 
   // One-time migration: if any habit predates the manual `order` field,
   // assign initial order from the current sort and persist it. Guarded so
@@ -127,16 +138,20 @@ export default function HabitsPage() {
     await repo.upsertHabit(h);
     setDrawerOpen(false);
     await refresh();
+    setStatusMessage(`${h.name} added.`);
   }
 
   async function saveHabit(h: Habit) {
     await repo.upsertHabit(h);
     await refresh();
+    setStatusMessage(`${h.name} saved.`);
   }
 
   async function archive(id: string) {
     await repo.archiveHabit(id);
     await refresh();
+    const habit = habits.find((item) => item.id === id);
+    setStatusMessage(habit ? `${habit.name} archived.` : "Habit archived.");
   }
 
   async function confirmDelete(habit: Habit) {
@@ -146,6 +161,7 @@ export default function HabitsPage() {
     setConfirmingId(null);
     setConfirmText("");
     await refresh();
+    setStatusMessage(`${habit.name} deleted.`);
   }
 
   async function persistReorder(fromId: string, toId: string) {
@@ -158,6 +174,7 @@ export default function HabitsPage() {
     if (changed.length === 0) return;
     await Promise.all(changed.map((h) => repo.upsertHabit(h)));
     await refresh();
+    setStatusMessage("Habit order saved.");
   }
 
   function handleDragStart(e: React.DragEvent, id: string) {
@@ -198,6 +215,9 @@ export default function HabitsPage() {
 
   return (
     <AppFrame>
+      <p className="sr-only" role="status" aria-live="polite">
+        {statusMessage}
+      </p>
       <header className="mb-8 flex items-center justify-between gap-4">
         <div>
           <p className={eyebrow}>Building blocks</p>
@@ -208,7 +228,7 @@ export default function HabitsPage() {
         <button
           type="button"
           onClick={openNewDrawer}
-          className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.97] [background:rgb(var(--accent))] [color:rgb(var(--bg))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+          className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.97] [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
         >
           + New habit
         </button>
@@ -241,7 +261,6 @@ export default function HabitsPage() {
         <ul className="flex flex-col gap-2">
           {rows.map(({ habit, streak }) => {
             const showFlame = streak.current >= 3;
-            const confirming = confirmingId === habit.id;
             return (
               <li
                 key={habit.id}
@@ -298,56 +317,27 @@ export default function HabitsPage() {
                   </div>
                 </button>
 
-                {confirming ? (
-                  <div className="flex shrink-0 items-center gap-2">
-                    <input
-                      autoFocus
-                      value={confirmText}
-                      onChange={(e) => setConfirmText(e.target.value)}
-                      placeholder={`Type "${habit.name}" or "delete"`}
-                      className="w-40 rounded-md border px-2 py-1 text-xs outline-none [border-color:rgb(var(--hairline)/0.16)] [background:rgb(var(--surface-2))] [color:rgb(var(--text))] focus:[border-color:rgb(var(--accent))]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => confirmDelete(habit)}
-                      className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-[var(--dur-micro)] [color:rgb(var(--accent))] hover:[color:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConfirmingId(null);
-                        setConfirmText("");
-                      }}
-                      className="rounded-full px-3 py-1.5 text-xs [color:rgb(var(--text-mute))] hover:[color:rgb(var(--text-dim))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => archive(habit.id)}
-                      aria-label={`Archive ${habit.name}`}
-                      className="rounded-full px-3 py-1.5 text-xs transition-colors duration-[var(--dur-micro)] [color:rgb(var(--text-mute))] hover:[color:rgb(var(--text))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-                    >
-                      Archive
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConfirmingId(habit.id);
-                        setConfirmText("");
-                      }}
-                      aria-label={`Delete ${habit.name}`}
-                      className="rounded-full px-3 py-1.5 text-xs transition-colors duration-[var(--dur-micro)] [color:rgb(var(--text-mute))] hover:[color:rgb(var(--text))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => archive(habit.id)}
+                    aria-label={`Archive ${habit.name}`}
+                    className="rounded-full px-3 py-1.5 text-xs transition-colors duration-[var(--dur-micro)] [color:rgb(var(--text-mute))] hover:[color:rgb(var(--text))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+                  >
+                    Archive
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingId(habit.id);
+                      setConfirmText("");
+                    }}
+                    aria-label={`Delete ${habit.name}`}
+                    className="rounded-full px-3 py-1.5 text-xs transition-colors duration-[var(--dur-micro)] [color:rgb(var(--text-mute))] hover:[color:rgb(var(--text))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+                  >
+                    Delete
+                  </button>
+                </div>
               </li>
             );
           })}
@@ -367,6 +357,16 @@ export default function HabitsPage() {
           <HabitDetail habit={detailHabit} logs={detailLogs} onLog={log} onSaved={saveHabit} />
         )}
       </HabitDrawer>
+
+      <ConfirmDeleteDialog
+        habit={confirmingHabit}
+        value={confirmText}
+        onChange={setConfirmText}
+        onCancel={cancelDelete}
+        onConfirm={() => {
+          if (confirmingHabit) void confirmDelete(confirmingHabit);
+        }}
+      />
     </AppFrame>
   );
 }

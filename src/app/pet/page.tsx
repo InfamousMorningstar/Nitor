@@ -109,7 +109,7 @@ export default function PetPage() {
                 <button
                   type="button"
                   onClick={handleFeed}
-                  className="shrink-0 rounded-full px-5 py-2.5 text-sm font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.97] [background:rgb(var(--accent))] [color:rgb(var(--bg))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+                  className="shrink-0 rounded-full px-5 py-2.5 text-sm font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.97] [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
                 >
                   Feed {petName}
                 </button>

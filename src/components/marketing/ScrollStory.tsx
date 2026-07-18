@@ -244,7 +244,7 @@ export function ScrollStory() {
               </div>
               <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border [border-color:rgb(var(--hairline)/0.16)]">
                 <span ref={checkFillRef} className="absolute inset-0 grid place-items-center rounded-full [background:rgb(var(--accent))]" aria-hidden="true">
-                  <span ref={checkMarkRef} className="text-lg [color:rgb(var(--bg))]">&#10003;</span>
+                  <span ref={checkMarkRef} className="text-lg [color:rgb(var(--accent-contrast))]">&#10003;</span>
                 </span>
               </span>
               <span ref={streakLabelRef} className="absolute -right-2 -top-3 rounded-full border px-2 py-0.5 font-[family-name:var(--font-mono)] text-[11px] [border-color:rgb(var(--hairline)/0.16)] [background:rgb(var(--surface))] [color:rgb(var(--accent))]">
@@ -349,7 +349,7 @@ function StaticStory({
                 <div className="truncate text-[15px] [color:rgb(var(--text))]">Read 20 pages</div>
                 <div className="mt-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [color:rgb(var(--text-mute))]">Daily</div>
               </div>
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full [background:rgb(var(--accent))] [color:rgb(var(--bg))]">&#10003;</span>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))]">&#10003;</span>
               <span className="absolute -right-2 -top-3 rounded-full border px-2 py-0.5 font-[family-name:var(--font-mono)] text-[11px] [border-color:rgb(var(--hairline)/0.16)] [background:rgb(var(--surface))] [color:rgb(var(--accent))]">
                 streak +1
               </span>

@@ -1,8 +1,6 @@
 "use client";
-import { useEffect, useRef, type ReactNode } from "react";
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+import { useRef, type ReactNode } from "react";
+import { useDialogFocus } from "@/components/a11y/useDialogFocus";
 
 /**
  * Right-side drawer for the habit builder — NOT a cramped modal. Slides in
@@ -22,48 +20,7 @@ export function HabitDrawer({
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    previouslyFocused.current = document.activeElement as HTMLElement | null;
-    const panel = panelRef.current;
-    const focusables = panel?.querySelectorAll<HTMLElement>(FOCUSABLE);
-    (focusables?.[0] ?? panel)?.focus();
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-      if (e.key === "Tab" && panel) {
-        const nodes = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-          (n) => !n.hasAttribute("disabled")
-        );
-        if (nodes.length === 0) return;
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = prevOverflow;
-      previouslyFocused.current?.focus();
-    };
-  }, [open, onClose]);
+  useDialogFocus({ open, onClose, containerRef: panelRef });
 
   return (
     <div

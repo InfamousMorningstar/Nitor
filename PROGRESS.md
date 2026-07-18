@@ -5,9 +5,9 @@ rejected). Front-end-first prototype; auth stubbed; Supabase wired later behind 
 
 **Branch:** `main` is the baseline. Active work is on `feat/phase2-identity` (pushed, not merged).
 **Status:** front-end prototype ~90% and feature-complete. Phase 2 (the backend) is underway —
-slice 1 of 5 is 7/19 tasks in. 137 tests passing, clean production build.
+slice 1 of 5 is 16/19 tasks in. 198 tests passing, clean production build.
 
-_Last updated: 2026-07-16._
+_Last updated: 2026-07-17._
 
 ---
 
@@ -62,19 +62,32 @@ _Last updated: 2026-07-16._
   (`Habit.order`), retired the stale `/habits/[id]` route.
 - **Quotes** — verified pool grown 12 → **58** (every one a checkable primary source), date-rotation
   now draws bundled ∪ remote, and a **Supabase** top-up (`public.quotes`, RLS select-only) merges
-  fresh verified quotes every 14 days — **degrades to the bundled pool until Supabase is
-  provisioned** (schema `supabase/quotes.sql` + `scripts/seed-quotes.ts` ready to run).
+  fresh verified quotes every 14 days — **degrades to the bundled pool when the remote is
+  unavailable** (schema `supabase/quotes.sql` + `scripts/seed-quotes.ts`).
 - User-facing **`docs/features/how-it-works.md`** + a landing **"How it works"** strip under the hero.
 
 ### Domain / tests
-- 5 habit types + everyNDays/monthly schedules + freeze/order/back-date engines. 115 tests (streaks,
+- 5 habit types + everyNDays/monthly schedules + freeze/order/back-date engines. 198 tests (streaks,
   freezes, insights, stats, quotes, habit order, back-date, emoji search, components).
+
+### Accessibility & polish _(2026-07-17)_
+- Focused keyboard/AT pass: shared modal focus trap + trigger restoration for the habit drawers,
+  command palette, and typed-confirm delete; Escape closes each; habit-detail tabs implement the
+  ARIA tab pattern with arrow/Home/End navigation.
+- Stats SVGs have accessible names, visible keyboard focus, and screen-reader tables for the
+  heatmap, momentum, weekday rhythm, and per-habit sparkrows.
+- Dark/light contrast tokens meet AA for normal text and amber actions; habit mutations announce
+  save/archive/delete/reorder status through a polite live region.
+- Brand mirrored-**R** App Router icon replaces the starter favicon. Unreferenced Next.js starter
+  SVGs removed from `public/`.
+- Habit builder/edit depth now includes category, strictness, and 0–7 grace days per week; the
+  detail drawer edits those fields while preserving habit identity, archive state, and order.
 
 ---
 
 ## 🚧 In progress — Phase 2, Slice 1: Identity & Session
 
-Branch `feat/phase2-identity` (pushed, 137 tests). Spec + 19-task plan:
+Branch `feat/phase2-identity` (pushed, 198 tests). Spec + 19-task plan:
 `docs/superpowers/specs/2026-07-16-phase2-identity-session-design.md` ·
 `docs/superpowers/plans/2026-07-16-phase2-identity-session.md`
 
@@ -82,26 +95,22 @@ Phase 2 is cut into five slices; slice 1 comes first because RLS policies need `
 exist. **Slice 1 must not deploy on its own** — auth would be real over fake in-memory data, and
 the beta notice's "your data is safe" is untrue until slice 2.
 
-**Done (reviewed):** deps + env scaffolding · `profiles.sql` (table, RLS, `security definer`
-trigger) · `safeNext` open-redirect guard · password minimum 12 (server parity) · Supabase
-browser/server client factories · `src/proxy.ts` route guard + session refresh · Turnstile widget.
+**Done (reviewed):** Supabase project provisioned + schemas/quote seed · deps + env scaffolding ·
+`profiles.sql` (table, RLS, `security definer` trigger) · `safeNext` open-redirect guard · password
+minimum 12 (server parity) · Supabase browser/server client factories · `src/proxy.ts` route guard
++ session refresh · auth callback/confirmation handlers · Turnstile widget · real signup/login/
+password reset · session context + sign-out · real user in sidebar · onboarding gating · quote
+top-up migrated to the publishable key.
 
 **Left:**
 
-1. **Provision Supabase** — create the project, enable **asymmetric JWT signing keys**, create
-   **publishable + secret** keys (not legacy `anon`/`service_role`), run `supabase/profiles.sql`
-   then `supabase/quotes.sql`, then `npx tsx scripts/seed-quotes.ts`. This blocks every runtime
-   gate: advisors, the negative RLS test, the live redirect check, end-to-end, and the quote
-   top-up are all still unrun.
-2. **Task 17 before trusting quotes** — `src/data/quotes/remote.ts` still reads `ANON_KEY` and
-   sends `Authorization: Bearer`, which publishable keys reject. It fails *closed* to the bundled
-   58 and looks perfectly healthy while broken.
-3. **Tasks 8, 10–16** — auth route handlers; real Google OAuth (Apple + GitHub stubs deleted);
-   real signup / login / reset (the fake magic-link flow gets deleted); session context +
-   sign-out; real user in sidebar; onboarding gating.
-4. **Task 18 — dashboard config.** SMTP half is **blocked until a domain is registered** (DNS
+1. **Task 10 — real Google OAuth.** The Apple + GitHub stubs are gone, but no
+   `signInWithOAuth({ provider: "google" })` implementation exists in `src/`; do not mark this
+   complete until the button/flow and tests exist.
+2. **Task 18 — dashboard config.** SMTP half is **blocked until a domain is registered** (DNS
    verification). Until then the built-in SMTP sends a few emails/hour: fine for dev, not shippable.
-5. **Task 19** — verification sweep.
+3. **Task 19** — finish the live/runtime gates: dashboard advisors, negative RLS, quote top-up,
+   authenticated redirects, and end-to-end browser flow.
 
 ## ⬜ Left to do — after slice 1
 
@@ -109,12 +118,7 @@ browser/server client factories · `src/proxy.ts` route guard + session refresh 
    (`user_id` on the domain, schema, `SupabaseHabitRepository` behind the existing
    `HabitRepository` seam — the dominant chunk); settings/pet sync (optional); notifications
    delivery; import-merge.
-2. **Habit Edit tab depth** — the drawer Edit tab preserves but can't yet CHANGE
-   strictness / grace-days-per-week / category (HabitForm has no true edit mode).
-3. **Favicon** = mirrored Я (still the default Next.js `favicon.ico`); focused **a11y audit**
-   (keyboard, AA contrast, chart aria + table fallbacks, drawer focus traps; add
-   `role="tabpanel"`/`aria-controls` to the habit-detail tabs). _Crest seal: done._
-4. **3D pet asset** — awaiting a **Spline scene URL or rigged `.glb`** (states
+2. **3D pet asset** — awaiting a **Spline scene URL or rigged `.glb`** (states
    `idle/eat/happy/sleepy/evolve`) to replace the placeholder in `NixCreature` + the landing hero.
 
 ## ⚠️ Gotchas worth not relearning
@@ -136,8 +140,7 @@ Five defects were caught on the slice-1 branch before shipping, and **every one 
 ---
 
 ## Notes
-- Auth is stubbed: any email + password enters the app (see README).
+- Auth is real; habit/settings/pet data still use the in-memory repository until slice 2.
 - `main` is the live baseline (redesign promoted). `feat/redesign` is kept only as history and can
   be deleted once nothing else references it.
-- `public/` still carries the default Next.js starter SVGs (`next.svg`, `vercel.svg`, `file.svg`,
-  `globe.svg`, `window.svg`) — safe to delete in a cleanup pass.
+- The default Next.js starter SVGs were confirmed unreferenced and removed from `public/`.
