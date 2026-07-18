@@ -47,6 +47,46 @@ export default function OnboardingPage() {
   const [reminder, setReminder] = useState<ReminderWindow>("Morning");
   const [petNameInput, setPetNameInput] = useState("Nix");
   const [finishing, setFinishing] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  /**
+   * Persists the completion flag and reports whether it actually stuck.
+   *
+   * This is no longer best-effort, and the difference matters: the auth routes
+   * now gate on onboarding_completed after every sign-in, so a silently failed
+   * write does not merely lose a preference — it sends the user back here on
+   * every subsequent authentication, forever. Better to keep them on this
+   * screen with a retry than to strand them in a loop they cannot see.
+   *
+   * supabase-js RETURNS errors rather than throwing them, so the returned
+   * `error` must be inspected; the try/catch only covers transport failures.
+   *
+   * Success requires POSITIVE EVIDENCE that this user's row was written, not
+   * merely the absence of an error. An UPDATE matching zero rows succeeds with
+   * `{ error: null }` — which is exactly what a missing profile row, an RLS
+   * policy filtering the row out, or a future policy regression all look like.
+   * Trusting `!error` there would report success, navigate to /today, and hand
+   * the user straight back to the post-auth gate on their next sign-in: the
+   * silent permanent loop this function exists to prevent. Hence the
+   * `.select("id")` round-trip and the identity check on what came back.
+   */
+  async function markOnboardingComplete(): Promise<boolean> {
+    // Nothing to persist against. The proxy handles the unauthenticated case.
+    if (!user) return true;
+    try {
+      const supabase = createClient();
+      // RLS allows updating only your own row (profiles_update_own).
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ onboarding_completed: true })
+        .eq("id", user.id)
+        .select("id")
+        .maybeSingle();
+      return !error && data?.id === user.id;
+    } catch {
+      return false;
+    }
+  }
 
   function toggleTemplate(name: string) {
     setSelected((prev) => {
@@ -59,6 +99,7 @@ export default function OnboardingPage() {
   async function handleFinish() {
     if (finishing) return;
     setFinishing(true);
+    setSaveError(null);
     setPetName(petNameInput);
 
     const chosen = HABIT_TEMPLATES.filter((t) => selected.includes(t.name));
@@ -85,24 +126,32 @@ export default function OnboardingPage() {
       // Best-effort — never block onboarding completion on a repo error.
     }
 
-    // Persist completion so the gating effect above redirects on next load.
-    // RLS allows updating only your own row (profiles_update_own).
-    if (user) {
-      try {
-        const supabase = createClient();
-        await supabase
-          .from("profiles")
-          .update({ onboarding_completed: true })
-          .eq("id", user.id);
-      } catch {
-        // Best-effort — never block onboarding completion on a write error.
-      }
+    if (!(await markOnboardingComplete())) {
+      setSaveError("Could not save your setup. Check your connection and try again.");
+      setFinishing(false);
+      return;
     }
 
     router.push("/today");
   }
 
-  function handleSkip() {
+  /**
+   * Skip still COMPLETES onboarding — it declines the setup questions, it does
+   * not defer them. Without writing the flag, the post-auth gate would drag the
+   * user back to this screen on every sign-in, which makes Skip a button that
+   * appears to work and doesn't.
+   */
+  async function handleSkip() {
+    if (finishing) return;
+    setFinishing(true);
+    setSaveError(null);
+
+    if (!(await markOnboardingComplete())) {
+      setSaveError("Could not skip setup. Check your connection and try again.");
+      setFinishing(false);
+      return;
+    }
+
     router.push("/today");
   }
 
@@ -112,7 +161,12 @@ export default function OnboardingPage() {
     <div className="flex min-h-screen w-full flex-col [background:rgb(var(--bg))]">
       <header className="flex items-center justify-between px-6 py-6 sm:px-10">
         <Wordmark size="text-xl" className="[color:rgb(var(--text))]" />
-        <button type="button" onClick={handleSkip} className={ghostButton}>
+        <button
+          type="button"
+          onClick={handleSkip}
+          disabled={finishing}
+          className={ghostButton}
+        >
           Skip
         </button>
       </header>
@@ -226,6 +280,15 @@ export default function OnboardingPage() {
                 </div>
               </div>
             </section>
+          )}
+
+          {saveError && (
+            <p
+              role="alert"
+              className="mt-6 text-[14px] [color:rgb(var(--accent))]"
+            >
+              {saveError}
+            </p>
           )}
 
           <nav className="mt-10 flex items-center justify-between gap-4">

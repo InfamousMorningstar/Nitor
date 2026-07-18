@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/auth/redirect";
+import { postAuthDestination } from "@/lib/auth/onboarding";
 
 /**
  * Handles signup-confirmation and password-recovery links. The email
@@ -24,7 +25,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=invalid_link`);
   }
 
-  // Recovery links must land on the password form, not the app.
-  const destination = type === "recovery" ? "/reset-password" : next;
+  // Recovery links must land on the password form, not the app — and not on
+  // onboarding either. Someone resetting a password has one job, and the
+  // onboarding gate still catches them on the next navigation.
+  if (type === "recovery") {
+    return NextResponse.redirect(`${origin}/reset-password`);
+  }
+
+  // Everything else is a confirmation that may be this user's first sign-in.
+  const destination = await postAuthDestination(supabase, next);
   return NextResponse.redirect(`${origin}${destination}`);
 }

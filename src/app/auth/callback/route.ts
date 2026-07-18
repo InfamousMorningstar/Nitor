@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/auth/redirect";
+import { postAuthDestination } from "@/lib/auth/onboarding";
 
-/** PKCE code exchange — where Google OAuth lands. */
+/**
+ * PKCE code exchange. Any flow that returns an authorization code lands here —
+ * email confirmation links and invites today, plus any provider enabled later.
+ */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get("code");
@@ -19,5 +23,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=auth_failed`);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  // A first sign-in through this route may carry no onboarding destination of
+  // its own, so the profile decides — not the link.
+  const destination = await postAuthDestination(supabase, next);
+  return NextResponse.redirect(`${origin}${destination}`);
 }
