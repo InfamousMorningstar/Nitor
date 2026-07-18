@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { HabitDetail } from "@/components/habits/HabitDetail";
 import type { Habit } from "@/domain/types";
@@ -9,6 +10,7 @@ const habit: Habit = {
   color: "#F5B027",
   category: "Personal",
   type: "boolean",
+  targetValue: null, // boolean habits carry no target
   schedule: { kind: "daily" },
   strictness: "balanced",
   graceDaysPerWeek: 1,

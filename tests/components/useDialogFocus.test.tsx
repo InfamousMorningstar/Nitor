@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { useDialogFocus } from "@/components/a11y/useDialogFocus";
