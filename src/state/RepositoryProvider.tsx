@@ -8,7 +8,12 @@ import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/state/SessionProvider";
 import { loadRemoteQuotes } from "@/data/quotes/remote";
 
-const Ctx = createContext<HabitRepository | null>(null);
+/**
+ * Wrapped in an object so a null REPOSITORY (session still resolving) stays
+ * distinguishable from a null CONTEXT (used outside the provider) — the second
+ * is a programming error and must keep throwing.
+ */
+const Ctx = createContext<{ repository: HabitRepository | null } | null>(null);
 
 export function RepositoryProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useSession();
@@ -18,9 +23,10 @@ export function RepositoryProvider({ children }: { children: ReactNode }) {
   const mockRef = useRef<HabitRepository | null>(null);
   if (!mockRef.current) mockRef.current = createSeededRepository();
 
-  // While the session resolves we hold the mock; an authenticated user gets a
-  // Supabase repo rebuilt only when their id changes (login/logout). Per-user
-  // isolation is enforced by RLS, not by app-side filters.
+  // Null while the session resolves — consumers must show loading rather than
+  // read or write anything. An authenticated user gets a Supabase repo rebuilt
+  // only when their id changes (login/logout). Per-user isolation is enforced
+  // by RLS, not by app-side filters.
   const repository = useMemo(
     () =>
       pickRepository({
@@ -38,11 +44,19 @@ export function RepositoryProvider({ children }: { children: ReactNode }) {
     void loadRemoteQuotes();
   }, []);
 
-  return <Ctx.Provider value={repository}>{children}</Ctx.Provider>;
+  const value = useMemo(() => ({ repository }), [repository]);
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-export function useRepository(): HabitRepository {
+/**
+ * The active repository, or null while the session is still resolving.
+ *
+ * Null means NOT READY, not "use a fallback": read nothing, write nothing, and
+ * render a loading state until it settles.
+ */
+export function useRepository(): HabitRepository | null {
   const c = useContext(Ctx);
   if (!c) throw new Error("useRepository must be used within RepositoryProvider");
-  return c;
+  return c.repository;
 }

@@ -213,7 +213,7 @@ export default function SettingsPage() {
         {
           id: "email",
           title: "Email",
-          description: "Read-only for now — no account backend yet.",
+          description: "Read-only for now — changing your email isn't available yet.",
           control: (
             <input
               value="you@example.com"
@@ -238,7 +238,7 @@ export default function SettingsPage() {
               </button>
               {pwStub && (
                 <span className="text-[11px] [color:rgb(var(--text-mute))]">
-                  No backend yet — stubbed.
+                  Changing your password here isn&rsquo;t available yet.
                 </span>
               )}
             </div>
@@ -268,7 +268,8 @@ export default function SettingsPage() {
         {
           id: "delete-account",
           title: "Delete account",
-          description: 'Type "delete" to confirm. This is stubbed — nothing is actually deleted.',
+          description:
+            'Type "delete" to confirm. Account deletion isn\'t available yet — nothing is removed. Email me and I\'ll do it by hand.',
           control: (
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2">
@@ -677,7 +678,8 @@ export default function SettingsPage() {
             Settings
           </h1>
           <p className="mt-1 text-sm [color:rgb(var(--text-mute))]">
-            Grouped, searchable, and kept entirely on this device.
+            Grouped and searchable. Preferences stay on this device; habits and
+            logs sync to your account.
           </p>
         </div>
 

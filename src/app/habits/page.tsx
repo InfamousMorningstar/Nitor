@@ -93,7 +93,13 @@ export default function HabitsPage() {
   // this runs once per session, not on every habits refresh.
   const migratedRef = useRef(false);
   useEffect(() => {
-    if (loading || migratedRef.current) return;
+    // `!repo` is load-bearing, not defensive. This used to claim the one-shot
+    // ref on the first non-loading pass — which was the pass where the session
+    // had not resolved and the repository was still the seeded mock. The ref
+    // was then spent, so the migration could never run for the real
+    // repository, and habits genuinely missing sort_order (onboarding creates
+    // exactly those) were never backfilled.
+    if (!repo || loading || migratedRef.current) return;
     migratedRef.current = true;
     if (habits.length === 0) return;
     const missingOrder = habits.some((h) => h.order === undefined);
@@ -135,6 +141,7 @@ export default function HabitsPage() {
   }
 
   async function addHabit(h: Habit) {
+    if (!repo) return;
     await repo.upsertHabit(h);
     setDrawerOpen(false);
     await refresh();
@@ -142,12 +149,14 @@ export default function HabitsPage() {
   }
 
   async function saveHabit(h: Habit) {
+    if (!repo) return;
     await repo.upsertHabit(h);
     await refresh();
     setStatusMessage(`${h.name} saved.`);
   }
 
   async function archive(id: string) {
+    if (!repo) return;
     await repo.archiveHabit(id);
     await refresh();
     const habit = habits.find((item) => item.id === id);
@@ -157,6 +166,7 @@ export default function HabitsPage() {
   async function confirmDelete(habit: Habit) {
     const typed = confirmText.trim().toLowerCase();
     if (typed !== "delete" && typed !== habit.name.trim().toLowerCase()) return;
+    if (!repo) return;
     await repo.deleteHabit(habit.id);
     setConfirmingId(null);
     setConfirmText("");
@@ -165,7 +175,7 @@ export default function HabitsPage() {
   }
 
   async function persistReorder(fromId: string, toId: string) {
-    if (fromId === toId) return;
+    if (!repo || fromId === toId) return;
     const next = reorder(habits, fromId, toId);
     const changed = next.filter((h) => {
       const before = habits.find((o) => o.id === h.id);

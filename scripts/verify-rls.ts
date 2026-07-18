@@ -764,6 +764,90 @@ async function main(): Promise<void> {
     );
     ok("B cannot preempt a habit id; both tenants hold their own row under it");
 
+    // --------------------------------------------------------------- Profiles
+    // "VERIFY-RLS: PASS" reads as a whole-database verdict, so it should not
+    // certify only two of the four tables. profiles carries the trust flag the
+    // auth gate reads (onboarding_completed), which makes it the last table
+    // that should go unchecked.
+    r = await rest(`/profiles?select=*`, { headers: userHeaders(aJwt) });
+    assert(r.status === 200, `A reads profiles: ${r.status}`);
+    const aProfiles = rows(r.body);
+    assert(
+      aProfiles.length === 1 && aProfiles[0].id === aId,
+      `A sees exactly its own profile (got ${JSON.stringify(aProfiles)})`,
+    );
+
+    r = await rest(`/profiles?id=eq.${aId}&select=*`, { headers: userHeaders(bJwt) });
+    assert(
+      r.status === 200 && rows(r.body).length === 0,
+      `B reading A's profile by exact id returns zero rows (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+
+    r = await rest(`/profiles?id=eq.${aId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(bJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ onboarding_completed: true }),
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 0,
+      `B's PATCH of A's profile affects zero rows (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+
+    // Control: the same PATCH shape works on B's own row, so the zero above is
+    // scoping rather than a broken request.
+    r = await rest(`/profiles?id=eq.${bId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(bJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ onboarding_completed: true }),
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 1,
+      `control: B's PATCH of its own profile affects 1 row (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+
+    // created_at is deliberately outside the column grant (profiles.sql), so
+    // honest metadata stays honest even on your own row.
+    r = await rest(`/profiles?id=eq.${bId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(bJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ created_at: "1999-01-01T00:00:00Z" }),
+    });
+    assert(
+      r.status === 403 || r.status === 401,
+      `B rewriting its own created_at is refused by the column grant (expected 401/403, got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+
+    r = await rest("/profiles?select=*", { headers: anonHeaders });
+    assert(
+      r.status === 200 && rows(r.body).length === 0,
+      `anon reads zero profiles (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    ok("profiles: own-row only, no cross-user read or write, created_at ungrantable, anon blocked");
+
+    // ----------------------------------------------------------------- Quotes
+    // quotes is deliberately world-readable and nobody-writable.
+    r = await rest("/quotes?select=id&limit=1", { headers: userHeaders(aJwt) });
+    assert(r.status === 200, `authenticated can read quotes: ${r.status}`);
+    r = await rest("/quotes", {
+      method: "POST",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ text: `injected ${stamp}`, author: "x", tradition: "stoic" }),
+    });
+    assert(
+      r.status === 401 || r.status === 403,
+      `authenticated INSERT into quotes is refused (expected 401/403, got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    r = await rest("/quotes", {
+      method: "POST",
+      headers: { ...anonHeaders, Prefer: "return=representation" },
+      body: JSON.stringify({ text: `injected anon ${stamp}`, author: "x", tradition: "stoic" }),
+    });
+    assert(
+      r.status === 401 || r.status === 403,
+      `anon INSERT into quotes is refused (expected 401/403, got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    ok("quotes: readable, but writable by neither authenticated nor anon");
+
     // ------------------------------------------------------------------- Anon
     r = await rest("/habits?select=*", { headers: anonHeaders });
     assert(

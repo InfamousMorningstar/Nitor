@@ -103,8 +103,12 @@ export default function OnboardingPage() {
     setPetName(petNameInput);
 
     const chosen = HABIT_TEMPLATES.filter((t) => selected.includes(t.name));
+    // `repo` is non-null by the time this screen is interactive (it resolves
+    // with the session, and this page requires a user), but the type is honest
+    // about the loading window and starter habits stay best-effort regardless.
     try {
       for (const t of chosen) {
+        if (!repo) break;
         const habit: Habit = {
           id: newHabitId(),
           name: t.name,

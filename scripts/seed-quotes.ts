@@ -2,8 +2,9 @@
  * Seeds the Supabase `public.quotes` table from the bundled QUOTES pool.
  *
  * Uses a plain `fetch` against the Supabase REST (PostgREST) endpoint with
- * the service-role key rather than the `@supabase/supabase-js` client, so no
- * new dependency is required (the package isn't installed in this repo).
+ * the secret key (SUPABASE_SECRET_KEY — the key Supabase used to call the
+ * service-role key) rather than the `@supabase/supabase-js` client, so no new
+ * dependency is required (the package isn't installed in this repo).
  *
  * Idempotent: upserts on the `text` column (see the unique constraint in
  * supabase/quotes.sql), so re-running this script is safe and will not
@@ -19,7 +20,9 @@
 import { QUOTES } from "../src/domain/quotes";
 
 async function main(): Promise<void> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Trailing slash trimmed to match scripts/verify-rls.ts — same env var,
+  // and a `//rest/v1` path 404s rather than failing usefully.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
   const secretKey = process.env.SUPABASE_SECRET_KEY;
 
   if (!url || !secretKey) {

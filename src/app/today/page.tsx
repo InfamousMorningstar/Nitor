@@ -12,7 +12,7 @@ import { today } from "@/domain/dates";
 import { isScheduledOn, isComplete } from "@/domain/streaks";
 
 export default function TodayPage() {
-  const { habits, logs, loading, log } = useHabits();
+  const { habits, logs, loading, error, log, refresh } = useHabits();
   const [doneOpen, setDoneOpen] = useState(false);
   const date = today();
   const streakFreezeEnabled = useSettingsStore((s) => s.streakFreeze);
@@ -72,6 +72,22 @@ export default function TodayPage() {
             onUse={() => log({ habitId: habit.id, date: missed, value: false, isFreeze: true })}
           />
         ))}
+
+        {error && (
+          <div
+            role="alert"
+            className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-4 [border-color:rgb(var(--accent)/0.3)] [background:rgb(var(--surface))]"
+          >
+            <p className="text-sm [color:rgb(var(--text))]">{error}</p>
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              className="text-sm underline [color:rgb(var(--accent))] hover:[color:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <p className="[color:rgb(var(--text-mute))]">Loading&hellip;</p>

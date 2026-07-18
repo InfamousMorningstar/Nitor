@@ -6,8 +6,9 @@ the frozen `HabitRepository` seam.
 
 **Branch:** `main` is the baseline. Active work is on `feat/phase2-identity` (pushed, not merged).
 **Status:** Phase 2 is underway. Identity/session is 16/19 tasks in; the Slice 2 persistence
-implementation is integrated behind RLS. 271 tests pass across 40 files; TypeScript and the
-24-page production build are clean.
+implementation is integrated behind RLS, with habit and log ownership enforced structurally
+(tenant-qualified keys plus a composite foreign key) rather than by application code. 362 tests
+pass across 42 files; TypeScript and the 24-page production build are clean.
 
 _Last updated: 2026-07-18._
 

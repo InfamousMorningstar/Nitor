@@ -5,10 +5,20 @@ import type { HabitRepository } from "./repository";
 const stub = (tag: string) => ({ tag }) as unknown as HabitRepository;
 
 describe("pickRepository", () => {
-  it("returns the mock while the session is loading", () => {
+  it("returns null while the session is loading — never the seeded mock", () => {
+    // Handing back the mock here rendered five fabricated habits as the user's
+    // own, accepted writes that were discarded on the swap, and let an export
+    // capture demo data. There is no correct repository yet; say so.
     const mock = stub("mock");
     const makeSupabase = vi.fn(() => stub("supabase"));
-    expect(pickRepository({ loading: true, userId: "u1", mock, makeSupabase })).toBe(mock);
+    expect(pickRepository({ loading: true, userId: "u1", mock, makeSupabase })).toBeNull();
+    expect(makeSupabase).not.toHaveBeenCalled();
+  });
+
+  it("returns null while loading even before a user id is known", () => {
+    const mock = stub("mock");
+    const makeSupabase = vi.fn(() => stub("supabase"));
+    expect(pickRepository({ loading: true, userId: null, mock, makeSupabase })).toBeNull();
     expect(makeSupabase).not.toHaveBeenCalled();
   });
 
