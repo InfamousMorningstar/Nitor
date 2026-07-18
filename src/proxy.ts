@@ -8,6 +8,15 @@ const PUBLIC_PATHS = new Set([
   "/signup",
   "/forgot-password",
   "/reset-password",
+  // Public marketing/content pages. Each renders the MarketingNav +
+  // KineticFooter frame and must stay reachable while signed out, or the
+  // footer links dead-end at /login.
+  "/features",
+  "/pricing",
+  "/changelog",
+  "/roadmap",
+  "/privacy",
+  "/terms",
   "/security",
   "/auth/callback",
   "/auth/confirm",
