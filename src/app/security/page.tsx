@@ -43,7 +43,7 @@ const GROUPS: Group[] = [
       {
         code: "S1",
         title: "Server-verified sessions",
-        body: "Every request is authorized on the server by checking your session's cryptographic signature. Your browser is never trusted to assert who you are.",
+        body: "Every protected request is authorized on the server by checking your session's cryptographic signature. Your browser is never trusted to assert who you are.",
         status: "active",
       },
       {
@@ -55,7 +55,7 @@ const GROUPS: Group[] = [
       {
         code: "S6·S7",
         title: "Database-enforced isolation",
-        body: "Every table denies access by default. Row-level security means you can only ever read or change your own data — enforced by the database itself, not just the app.",
+        body: "Every user-owned table denies cross-user access by default. Row-level security means you can only ever read or change your own data — enforced by the database itself, not just the app.",
         status: "active",
       },
     ],
@@ -89,36 +89,24 @@ const GROUPS: Group[] = [
       {
         code: "S3·S4",
         title: "Least-privilege keys",
-        body: "Privileged keys never reach your browser or our code repository. The browser carries only a low-privilege key, and the database remains the real boundary.",
+        body: "Privileged keys never reach your browser or the source repository. The browser carries only a low-privilege key, and the database remains the real boundary.",
         status: "active",
       },
       {
-        code: "Beta",
+        code: "RLS",
         title: "Where your data lives",
-        body: "During the beta, habit data stays in your browser session. Before general availability it moves into the same row-level-secured database that already protects your account.",
-        status: "progress",
+        body: "Authenticated habit and log data lives in Supabase behind database-enforced row-level security. Guest data remains local to the browser experience.",
+        status: "active",
       },
     ],
   },
   {
-    label: "How we verify",
+    label: "Verification controls",
     controls: [
       {
-        code: "Tests",
-        title: "An adversarial test suite",
-        body: "Every change runs through an automated test suite — including tests that actively try to break these controls: open-redirect bypass, cross-user data access, and re-using a spent challenge token.",
-        status: "active",
-      },
-      {
-        code: "AI audit",
-        title: "Adversarial review by a frontier AI model",
-        body: "The identity stack was audited end to end with Claude Fable 5: every control on this page re-verified against the code, the full sign-up, sign-in and recovery flows driven in a real browser against the live backend — including attempted open-redirect and cross-user writes — and the issues it found fixed before merge. This complements, and does not replace, the independent human audit on our roadmap.",
-        status: "active",
-      },
-      {
-        code: "Advisors",
+        code: "DB",
         title: "Clean database advisors",
-        body: "Supabase's automated security advisors report zero findings against our database configuration.",
+        body: "Supabase's automated security advisors reported zero findings on 2026-07-18. All four public tables — profiles, quotes, habits, and logs — were confirmed with row-level security enabled.",
         status: "active",
       },
     ],
@@ -171,6 +159,29 @@ function ControlRow({ control }: { control: Control }) {
   );
 }
 
+function EvidenceCard({
+  title,
+  code,
+  children,
+}: {
+  title: string;
+  code: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <article className="rounded-xl border p-6 [background:rgb(var(--surface))] [border-color:rgb(var(--hairline)/0.1)]">
+      <p className={eyebrow}>{code}</p>
+      {/* h3, not h2: each card nests under the "Evidence ledger" h2 above. */}
+      <h3 className="mt-3 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight [color:rgb(var(--text))]">
+        {title}
+      </h3>
+      <div className="mt-3 space-y-3 text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
+        {children}
+      </div>
+    </article>
+  );
+}
+
 export default function SecurityPage() {
   return (
     <div className="flex min-h-screen flex-col [background:rgb(var(--bg))]">
@@ -184,10 +195,10 @@ export default function SecurityPage() {
             Built to be checked, not trusted.
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-relaxed [color:rgb(var(--text-dim))]">
-            Security wasn&rsquo;t bolted onto Nitor at the end. Before the first
-            feature shipped, the rules below were written into the spec — and
-            every change since is checked against them. Here is exactly how your
-            account and your data are protected.
+            Before authenticated persistence was introduced, the rules below
+            were written into the Phase 2 specification. Every related change
+            since is checked against them. Here is exactly how your account and
+            your data are protected.
           </p>
 
           <p className="mt-8 border-l-2 py-1 pl-4 font-[family-name:var(--font-mono)] text-[13px] leading-relaxed [border-color:rgb(var(--accent))] [color:rgb(var(--text-dim))]">
@@ -200,17 +211,13 @@ export default function SecurityPage() {
         <section className="mt-14 rounded-xl border p-6 [background:rgb(var(--surface))] [border-color:rgb(var(--hairline)/0.1)]">
           <p className={eyebrow}>Beta — read this</p>
           <p className="mt-3 max-w-[70ch] text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
-            Nitor is in active development. This page describes the security we
-            have built for identity and sessions today, following current
-            platform security guidance: signature-verified sessions, new-generation
-            least-privilege API keys, and database-enforced row isolation. Each
-            release of the identity stack is additionally reviewed adversarially
-            with Claude Fable 5, a frontier AI model, which re-runs its own tests
-            against the live app. It is{" "}
-            <span className="[color:rgb(var(--text))]">not</span> independently
-            audited or certified yet — independent human security review and
-            encrypted, server-side data storage are part of our path to general
-            availability, and we will update this page as each one lands.
+            Nitor is active beta software. This page describes controls that are
+            implemented and reproducible today: signature-verified sessions,
+            least-privilege API keys, database-enforced row isolation, automated
+            tests, and live-browser checks. Nitor has{" "}
+            <span className="[color:rgb(var(--text))]">not</span> been independently
+            audited or certified yet. Independent human security review remains
+            on the path to general availability.
           </p>
         </section>
 
@@ -218,7 +225,15 @@ export default function SecurityPage() {
         <section className="mt-20">
           {GROUPS.map((group) => (
             <div key={group.label} className="mt-14 first:mt-0">
-              <p className={eyebrow}>{group.label}</p>
+              {/* The group label is the section's real heading, so it renders
+                  as an h2 styled as the eyebrow — not a <p>. Without this the
+                  page jumps h1 → h3 at the first ControlRow and screen-reader
+                  users lose the outline. Same pattern as PublicPage's Section. */}
+              {/* The group label is the section's real heading, so it renders
+                  as an h2 styled as the eyebrow — not a <p>. Without this the
+                  page jumps h1 → h3 at the first ControlRow and screen-reader
+                  users lose the outline. Same pattern as PublicPage's Section. */}
+              <h2 className={eyebrow}>{group.label}</h2>
               <div className="mt-4">
                 {group.controls.map((c) => (
                   <ControlRow key={c.title} control={c} />
@@ -228,16 +243,70 @@ export default function SecurityPage() {
           ))}
         </section>
 
+        <section className="mt-20">
+          <h2 className={eyebrow}>Evidence ledger · verified 2026-07-18</h2>
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <EvidenceCard title="Automated tests" code="271">
+              <p>
+                <span className="[color:rgb(var(--text))]">40 test files and 271 tests</span>{" "}
+                passed in the integrated workspace.
+              </p>
+              <p>
+                Claude added 62 focused public-page and route-guard tests, including
+                page contracts, solo-developer voice checks, public allowlisting, and
+                protected-route adversarial cases.
+              </p>
+              <p>
+                8 Codex-lane tests across 5 files passed, including 4 repository contract
+                tests for field fidelity and query behavior.
+              </p>
+            </EvidenceCard>
+
+            <EvidenceCard title="Live-browser checks" code="7 routes">
+              <p>
+                Seven public routes loaded while signed out without redirect. Footer
+                click-through, heading and landmark structure, and keyboard focus order
+                were checked in the rendered app.
+              </p>
+              <p>
+                Light and dark theme contrast was measured at a minimum ratio of{" "}
+                <span className="[color:rgb(var(--text))]">4.60:1</span>, meeting WCAG AA
+                for normal text.
+              </p>
+              <p>
+                Adversarial routing covered prefix escape, raw and percent-encoded path
+                traversal, case variants, and all six protected routes with the{" "}
+                <code>?next</code> destination preserved.
+              </p>
+            </EvidenceCard>
+
+            <EvidenceCard title="Model-assisted review" code="2 reviews">
+              <p>
+                Claude Fable 5 reviewed identity, sessions, route protection, and the
+                live-browser adversarial checks against the integrated app.
+              </p>
+              <p>
+                The persistence repository and its RLS boundary were independently reviewed
+                with OpenAI Codex, including schema fidelity, ownership isolation, mutation
+                safety, and field round-tripping.
+              </p>
+              <p>
+                Model-assisted review is not an independent human audit or certification.
+              </p>
+            </EvidenceCard>
+          </div>
+        </section>
+
         {/* Responsible disclosure */}
         <section className="mt-20 rounded-xl border p-8 [background:rgb(var(--surface))] [border-color:rgb(var(--hairline)/0.1)]">
           <p className={eyebrow}>Report a vulnerability</p>
           <h2 className="mt-3 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight [color:rgb(var(--text))]">
-            Found something? Tell us.
+            Found something? Tell Salman.
           </h2>
           <p className="mt-3 max-w-[64ch] text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
-            If you believe you have found a security issue in Nitor, email us. We
-            read every report and will work with you on a fix before any public
-            disclosure — please give us a reasonable window to respond.
+            If you believe you have found a security issue in Nitor, email Salman
+            Ahmad directly. Every report is read, investigated, and handled before
+            coordinated public disclosure. Please allow a reasonable response window.
           </p>
           <a
             href="mailto:s.ahmad0147@gmail.com?subject=Nitor%20security%20report"
