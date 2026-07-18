@@ -82,7 +82,7 @@ export default function SignupPage() {
           Check your email
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
-          We sent a confirmation link to{" "}
+          A confirmation link was sent to{" "}
           <span className="[color:rgb(var(--text))]">{email}</span>. Open it to
           finish setting up your account.
         </p>

@@ -166,7 +166,7 @@ export default function OnboardingPage() {
             <section>
               <p className={eyebrow}>Step 2 of 3</p>
               <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight [color:rgb(var(--text))]">
-                When should we remind you?
+                When should reminders arrive?
               </h1>
               <p className="mt-2 text-[15px] [color:rgb(var(--text-dim))]">
                 Pick the window that fits your day.

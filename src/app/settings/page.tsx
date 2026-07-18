@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { AppFrame } from "@/components/app/AppFrame";
 import { useTheme } from "@/state/theme";
 import { useHabits } from "@/state/useHabits";
@@ -180,7 +180,6 @@ export default function SettingsPage() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      // eslint-disable-next-line no-console
       console.log("Nitor import (stub — not merged):", parsed);
       const habitCount = Array.isArray(parsed?.habits) ? parsed.habits.length : 0;
       const logCount = Array.isArray(parsed?.logs) ? parsed.logs.length : 0;
@@ -652,8 +651,8 @@ export default function SettingsPage() {
           ),
         },
         {
-          id: "what-we-store",
-          title: "What we store",
+          id: "stored-data",
+          title: "Stored data",
           description:
             "Everything lives in this browser — habits, logs, and these preferences. Nothing is sent anywhere.",
           control: (

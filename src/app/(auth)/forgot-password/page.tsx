@@ -88,7 +88,7 @@ export default function ForgotPasswordPage() {
         Forgot your password?
       </h1>
       <p className="mt-3 text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
-        Enter the email on your account and we&rsquo;ll send a link to reset it.
+        Enter the email on your account to receive a password-reset link.
       </p>
 
       <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
