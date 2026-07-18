@@ -1,13 +1,15 @@
 # Nitor — Progress & Roadmap
 
 Redesign of Nitor into a matte, editorial, premium habit tracker (the glassmorphism build was
-rejected). Front-end-first prototype; auth stubbed; Supabase wired later behind `HabitRepository`.
+rejected). Auth is live; authenticated habit and log persistence now runs through Supabase behind
+the frozen `HabitRepository` seam.
 
 **Branch:** `main` is the baseline. Active work is on `feat/phase2-identity` (pushed, not merged).
-**Status:** front-end prototype ~90% and feature-complete. Phase 2 (the backend) is underway —
-slice 1 of 5 is 16/19 tasks in. 198 tests passing, clean production build.
+**Status:** Phase 2 is underway. Identity/session is 16/19 tasks in; the Slice 2 persistence
+implementation is integrated behind RLS. 271 tests pass across 40 files; TypeScript and the
+24-page production build are clean.
 
-_Last updated: 2026-07-17._
+_Last updated: 2026-07-18._
 
 ---
 
@@ -36,9 +38,8 @@ _Last updated: 2026-07-17._
   rhythm bars, per-habit sparkrows, range switcher. Custom matte SVG (no chart lib).
 - **Insights** — weekly **story** lede, **worded** correlations (no raw `r`, gated by significance),
   **streak-risk** alert, **habit-stacking** suggestion, shareable **monthly recap** (wordmark).
-- **Pet (Nix)** — glow = 7-day completion rate, no-guilt principle, deliberate Feed, evolution
-  track (Egg→Hatchling→Juvenile→Radiant), cosmetic wardrobe, memory log. *Procedural placeholder
-  creature.*
+- **Pet** — `/pet` is back to an honest **Coming soon** state while the full Nix companion is
+  deferred to a future phase.
 - **Settings** — grouped + searchable: account (stub), appearance (theme / 5 accents / density /
   reduce-motion), habits & streaks (week-start, day-rollover, streak-freeze toggle, vacation mode),
   notifications (stub prefs), quotes (traditions), pet (rename), data (**export JSON + CSV**).
@@ -52,6 +53,9 @@ _Last updated: 2026-07-17._
   helm+shield emblem crop) on a fixed dark chip beside the "Designed & Engineered by Salman Ahmad"
   attribution → portfolio.ahmxd.net. Verified legible on both themes.
 - **Loader** (≤2s glitch intro → mirrored Я, skippable, reduced-motion fallback) + on-brand **404**.
+- **Public footer pages** — real `/features`, `/pricing`, `/changelog`, `/roadmap`, `/privacy`,
+  `/terms`, and `/security` routes replace every placeholder footer link. Public copy uses a
+  solo-developer or neutral product voice.
 
 ### Streak-freeze, advanced habit management, fresh quotes _(2026-07-15)_
 - **Streak-freeze** — per-habit **earned** freeze (1 per 7 completed scheduled days, bank max 2),
@@ -67,8 +71,9 @@ _Last updated: 2026-07-17._
 - User-facing **`docs/features/how-it-works.md`** + a landing **"How it works"** strip under the hero.
 
 ### Domain / tests
-- 5 habit types + everyNDays/monthly schedules + freeze/order/back-date engines. 198 tests (streaks,
-  freezes, insights, stats, quotes, habit order, back-date, emoji search, components).
+- 5 habit types + everyNDays/monthly schedules + freeze/order/back-date engines. 271 tests across
+  40 files cover domain behavior, persistence mapping, auth, route guards, public pages,
+  accessibility, and components.
 
 ### Accessibility & polish _(2026-07-17)_
 - Focused keyboard/AT pass: shared modal focus trap + trigger restoration for the habit drawers,
@@ -85,9 +90,9 @@ _Last updated: 2026-07-17._
 
 ---
 
-## 🚧 In progress — Phase 2, Slice 1: Identity & Session
+## 🚧 In progress — Phase 2: Identity, Session & Persistence
 
-Branch `feat/phase2-identity` (pushed, 198 tests). Spec + 19-task plan:
+Branch `feat/phase2-identity` (pushed, 271 tests). Identity spec + 19-task plan:
 `docs/superpowers/specs/2026-07-16-phase2-identity-session-design.md` ·
 `docs/superpowers/plans/2026-07-16-phase2-identity-session.md`
 
@@ -102,24 +107,47 @@ minimum 12 (server parity) · Supabase browser/server client factories · `src/p
 password reset · session context + sign-out · real user in sidebar · onboarding gating · quote
 top-up migrated to the publishable key.
 
+**Slice 2 persistence (integrated):** `habits` + `logs` schema with server-owned `user_id` and
+deny-by-default RLS · authenticated provider selection · browser-client
+`SupabaseHabitRepository` · faithful schedule/type/strictness/grace/order/target/unit/date and
+boolean-or-numeric log round-trips · cascade deletion · 4 focused repository contract tests.
+Supabase security advisors report zero findings, and all four public tables (`profiles`, `quotes`,
+`habits`, `logs`) are confirmed RLS-enabled.
+
+**Slice 2 runtime-proved _(2026-07-18)_:** `scripts/verify-rls.ts` prints `VERIFY-RLS: PASS`
+(13 checks) against the live project — field fidelity, cross-user read/PATCH/DELETE isolation,
+forged-`user_id` rejection on INSERT and UPDATE, and anon lockout. Every negative check is paired
+with a positive control (user B holds its own rows), and the script was mutation-tested: handing B
+user A's JWT fails it. End-to-end browser run signed in as a real user, created 3 habits, logged
+one, edited it, archived one, deleted another, hard-reloaded, and confirmed the surviving state
+came from Postgres and not the seeded mock; cascade delete drops a habit's logs. Tables returned
+to 0 rows after cleanup.
+
 **Left:**
 
-1. **Task 10 — real Google OAuth.** The Apple + GitHub stubs are gone, but no
-   `signInWithOAuth({ provider: "google" })` implementation exists in `src/`; do not mark this
-   complete until the button/flow and tests exist.
+1. **Task 10 — real Google OAuth. BLOCKED, verified 2026-07-18.** The Apple + GitHub stubs are
+   gone, and no `signInWithOAuth({ provider: "google" })` implementation exists in `src/`.
+   `GET /auth/v1/settings` on the live project reports **`external.google: false`** — email is the
+   only enabled provider — so a "Continue with Google" button would 400 (`provider is not
+   enabled`) and strand the user. **Do not implement until** a Google Cloud OAuth client exists
+   and its client ID + secret are set in Supabase → Auth → Providers → Google (authorized redirect
+   URI `<supabase-url>/auth/v1/callback`). Re-check with that settings endpoint; the flag flipping
+   to `true` is the green light. `/auth/callback` already does the PKCE exchange, already routes
+   through `safeNext`, and already passes its output to the redirect verbatim.
 2. **Task 18 — dashboard config.** SMTP half is **blocked until a domain is registered** (DNS
    verification). Until then the built-in SMTP sends a few emails/hour: fine for dev, not shippable.
-3. **Task 19** — finish the live/runtime gates: dashboard advisors, negative RLS, quote top-up,
+3. **Task 19** — finish the remaining live/runtime gates: negative RLS, quote top-up,
    authenticated redirects, and end-to-end browser flow.
 
-## ⬜ Left to do — after slice 1
+## ⬜ Left to do
 
-1. **Phase 2 slices 2–5**, each needing its own brainstorm → spec → plan: **persistence & RLS**
-   (`user_id` on the domain, schema, `SupabaseHabitRepository` behind the existing
-   `HabitRepository` seam — the dominant chunk); settings/pet sync (optional); notifications
-   delivery; import-merge.
-2. **3D pet asset** — awaiting a **Spline scene URL or rigged `.glb`** (states
-   `idle/eat/happy/sleepy/evolve`) to replace the placeholder in `NixCreature` + the landing hero.
+1. **Finish identity/runtime gates** — Google OAuth; production SMTP after domain registration;
+   live cross-user RLS, quote top-up, authenticated redirects, and full signed-in browser flow.
+2. **Phase 2 slices 3–5**, each needing its own brainstorm → spec → plan: settings sync,
+   notifications delivery, and import-merge.
+3. **Full Nix companion** — future roadmap work covering pet persistence, feed/evolution,
+   wardrobe, memory, and the final production asset. The visual asset still needs a Spline scene
+   URL or rigged `.glb` with `idle/eat/happy/sleepy/evolve` states.
 
 ## ⚠️ Gotchas worth not relearning
 
@@ -140,7 +168,8 @@ Five defects were caught on the slice-1 branch before shipping, and **every one 
 ---
 
 ## Notes
-- Auth is real; habit/settings/pet data still use the in-memory repository until slice 2.
+- Authenticated habit/log data uses Supabase; the signed-out demo still uses the seeded in-memory
+  repository. Settings remain local, and the full pet system is deferred.
 - `main` is the live baseline (redesign promoted). `feat/redesign` is kept only as history and can
   be deleted once nothing else references it.
 - The default Next.js starter SVGs were confirmed unreferenced and removed from `public/`.
