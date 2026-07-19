@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { NixCreature } from "@/components/pet/NixCreature";
 import {
   BETA_HERO_FEEDBACK_LEAD,
   BETA_HERO_FEEDBACK_TAIL,
@@ -12,12 +11,12 @@ import {
 import { MarketingNav } from "./MarketingNav";
 
 /**
- * Full-viewport hero. Left: display headline + subhead + CTAs. Right: Nix
- * on a floating matte slab. Two parallax layers, composed into a single
- * imperative transform per element (no React re-render): cursor parallax on
- * the slab, plus scroll parallax that drifts the slab down and the copy up as
- * the hero scrolls away, giving depth as you leave the screen. Disabled under
- * reduced-motion.
+ * Full-viewport hero. Left: display headline + subhead + CTAs. Right: a weekly
+ * momentum ledger on a floating matte slab. Two parallax layers, composed into
+ * a single imperative transform per element (no React re-render): cursor
+ * parallax on the slab, plus scroll parallax that drifts the slab down and the
+ * copy up as the hero scrolls away, giving depth as you leave the screen.
+ * Disabled under reduced-motion.
  */
 export function Hero() {
   const slabRef = useRef<HTMLDivElement>(null);
@@ -99,8 +98,8 @@ export function Hero() {
 
           <p className="mt-6 max-w-[440px] text-lg leading-relaxed [color:rgb(var(--text-dim))]">
             Nitor is a quiet, honest habit tracker &mdash; one tap to log, a
-            forgiving streak, and a companion that only ever reflects what
-            you actually did.
+            forgiving streak, and a clear view of the patterns behind what you
+            actually did.
           </p>
 
           <p className="mt-5 max-w-[460px] text-[13px] leading-relaxed [color:rgb(var(--text-mute))]">
@@ -133,10 +132,64 @@ export function Hero() {
         <div className="relative flex items-center justify-center">
           <div
             ref={slabRef}
-            className="relative flex items-center justify-center rounded-[28px] border p-16 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))]"
+            className="relative w-full max-w-[440px] rounded-[28px] border p-7 sm:p-9 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))]"
             style={{ willChange: "transform" }}
           >
-            <NixCreature glow={0.8} state="radiant" size={220} />
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]">
+                  This week
+                </p>
+                <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-medium tracking-tight [color:rgb(var(--text))]">
+                  Quiet momentum
+                </p>
+              </div>
+              <span className="rounded-full border px-3 py-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [border-color:rgb(var(--hairline)/0.12)] [color:rgb(var(--accent))]">
+                On track
+              </span>
+            </div>
+
+            <div className="mt-10 flex items-end justify-between gap-6 border-b pb-7 [border-color:rgb(var(--hairline)/0.08)]">
+              <div>
+                <p className="font-[family-name:var(--font-mono)] text-6xl leading-none tabular-nums [color:rgb(var(--text))]">
+                  82
+                </p>
+                <p className="mt-2 text-sm [color:rgb(var(--text-dim))]">
+                  momentum
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="font-[family-name:var(--font-mono)] text-2xl tabular-nums [color:rgb(var(--text))]">
+                  5 / 7
+                </p>
+                <p className="mt-1 text-sm [color:rgb(var(--text-mute))]">
+                  days complete
+                </p>
+              </div>
+            </div>
+
+            <div
+              className="mt-7 grid grid-cols-7 gap-2"
+              role="img"
+              aria-label="Five of seven days completed this week"
+            >
+              {[true, true, true, false, true, true, false].map((done, i) => (
+                <span
+                  key={i}
+                  className={
+                    "h-12 rounded-md border " +
+                    (done
+                      ? "[border-color:rgb(var(--accent)/0.35)] [background:rgb(var(--accent)/0.16)]"
+                      : "[border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface-2))]")
+                  }
+                />
+              ))}
+            </div>
+
+            <div className="mt-6 flex items-center justify-between font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [color:rgb(var(--text-mute))]">
+              <span>18 day streak</span>
+              <span>1 freeze banked</span>
+            </div>
           </div>
         </div>
       </div>
