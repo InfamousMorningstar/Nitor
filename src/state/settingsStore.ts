@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { today } from "@/domain/dates";
 
 export type Density = "comfortable" | "compact";
 export type QuoteFrequency = "daily" | "off";
@@ -52,6 +53,15 @@ interface SettingsState {
   dayRolloverHour: number;
   streakFreeze: boolean;
   vacationMode: boolean;
+  /**
+   * The date vacation mode was switched on, or null when it is off. Streaks
+   * forgive scheduled days from this date onward.
+   *
+   * Stored alongside the boolean because the boolean alone cannot say WHEN it
+   * became true, and streak maths walks history — without an anchor, turning
+   * vacation on would forgive every past miss ever recorded.
+   */
+  vacationSince: string | null;
   quotesEnabled: boolean;
   quoteTraditions: string[];
   quoteFrequency: QuoteFrequency;
@@ -98,6 +108,7 @@ export const useSettingsStore = create<SettingsState>()(
       dayRolloverHour: 0,
       streakFreeze: true,
       vacationMode: false,
+      vacationSince: null,
       quotesEnabled: true,
       quoteTraditions: ["stoic", "science", "wisdom", "history", "craft"],
       quoteFrequency: "daily",
@@ -123,7 +134,13 @@ export const useSettingsStore = create<SettingsState>()(
       setWeekStartsOn: (weekStartsOn) => set({ weekStartsOn }),
       setDayRolloverHour: (dayRolloverHour) => set({ dayRolloverHour }),
       setStreakFreeze: (streakFreeze) => set({ streakFreeze }),
-      setVacationMode: (vacationMode) => set({ vacationMode }),
+      // Switching on anchors the window to today; switching off clears it, so
+      // protection stops without retroactively rewriting past days.
+      setVacationMode: (vacationMode) =>
+        set({
+          vacationMode,
+          vacationSince: vacationMode ? today(get().dayRolloverHour) : null,
+        }),
       setQuotesEnabled: (quotesEnabled) => set({ quotesEnabled }),
       setQuoteTraditions: (quoteTraditions) => set({ quoteTraditions }),
       toggleQuoteTradition: (tradition) => {

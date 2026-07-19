@@ -14,7 +14,7 @@ import {
   stackingSuggestion,
   monthlyRecap,
 } from "@/domain/insights";
-import { today } from "@/domain/dates";
+import { useToday } from "@/state/useDateSettings";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -24,7 +24,7 @@ const MONTH_NAMES = [
 export default function InsightsPage() {
   const { habits, logs, loading } = useHabits();
 
-  const date = today();
+  const date = useToday();
   const [yearStr, monthStr] = date.split("-");
   const month = `${yearStr}-${monthStr}`;
   const monthLabel = `${MONTH_NAMES[Number(monthStr) - 1]} ${yearStr}`;

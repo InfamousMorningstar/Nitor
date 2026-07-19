@@ -9,7 +9,7 @@ import { FlameIcon, scheduleLabel } from "@/components/today/HabitRow";
 import { useHabits } from "@/state/useHabits";
 import { useRepository } from "@/state/RepositoryProvider";
 import { computeStreak } from "@/domain/streaks";
-import { today } from "@/domain/dates";
+import { useToday, useStreakOptions } from "@/state/useDateSettings";
 import { sortHabits, assignInitialOrder, reorder } from "@/domain/habitOrder";
 import { HABIT_TEMPLATES, type HabitTemplate } from "@/domain/habitTemplates";
 import type { Habit, HabitType } from "@/domain/types";
@@ -51,7 +51,8 @@ export default function HabitsPage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
 
-  const now = today();
+  const now = useToday();
+  const streakOptions = useStreakOptions();
 
   const sortedHabits = useMemo(() => sortHabits(habits), [habits]);
 
@@ -64,10 +65,11 @@ export default function HabitsPage() {
           streak: computeStreak(
             h,
             logs.filter((l) => l.habitId === h.id),
-            now
+            now,
+            streakOptions
           ),
         })),
-    [sortedHabits, logs, now]
+    [sortedHabits, logs, now, streakOptions]
   );
 
   const detailHabit = useMemo(

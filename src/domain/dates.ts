@@ -10,10 +10,25 @@ function fmt(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-export function today(): string {
+const MS_PER_HOUR = 60 * 60 * 1000;
+
+/**
+ * The current logical date.
+ *
+ * `rolloverHour` is the hour at which a new day begins for this user. At the
+ * default of 0 this is the plain calendar date. Set to 3, someone logging a
+ * habit at 1am is still finishing yesterday — which is the point: a day that
+ * ends at midnight punishes anyone whose day does not, and they lose a streak
+ * they actually kept.
+ *
+ * Implemented by shifting the clock backward before reading the calendar date,
+ * so the whole app keeps dealing in plain YYYY-MM-DD strings and no other date
+ * function needs to know this setting exists.
+ */
+export function today(rolloverHour = 0): string {
   const override = (globalThis as Record<string, unknown>).__NITOR_NOW__;
   if (typeof override === "string") return override;
-  const n = new Date();
+  const n = new Date(Date.now() - rolloverHour * MS_PER_HOUR);
   return fmt(new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())));
 }
 

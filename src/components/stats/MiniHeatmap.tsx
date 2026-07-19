@@ -1,5 +1,6 @@
 import type { Habit, Log } from "@/domain/types";
-import { addDays, diffDays, today } from "@/domain/dates";
+import { addDays, diffDays } from "@/domain/dates";
+import { useToday } from "@/state/useDateSettings";
 import { isComplete, isScheduledOn } from "@/domain/streaks";
 
 const CELL = 10;
@@ -60,7 +61,7 @@ interface MiniHeatmapProps {
  */
 export function MiniHeatmap({ habit, logs, weeks = 13 }: MiniHeatmapProps) {
   const byDate = new Map(logs.map((l) => [l.date, l]));
-  const end = today();
+  const end = useToday();
   const totalDays = weeks * 7;
 
   const cells: Cell[] = [];

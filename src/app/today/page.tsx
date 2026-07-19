@@ -8,13 +8,13 @@ import { useHabits } from "@/state/useHabits";
 import { useSettingsStore } from "@/state/settingsStore";
 import { freezeBank, rescuableMiss } from "@/domain/freezes";
 import { FreezePrompt } from "@/components/today/FreezePrompt";
-import { today } from "@/domain/dates";
+import { useToday } from "@/state/useDateSettings";
 import { isScheduledOn, isComplete } from "@/domain/streaks";
 
 export default function TodayPage() {
   const { habits, logs, loading, error, log, refresh } = useHabits();
   const [doneOpen, setDoneOpen] = useState(false);
-  const date = today();
+  const date = useToday();
   const streakFreezeEnabled = useSettingsStore((s) => s.streakFreeze);
 
   const scheduled = useMemo(

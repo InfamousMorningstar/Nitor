@@ -383,7 +383,7 @@ export default function SettingsPage() {
         {
           id: "week-starts-on",
           title: "Week starts on",
-          description: "Controls how weekday schedules and weekly stats are laid out.",
+          description: "Sets which day your weekly stats start from.",
           control: (
             <PillSelect
               options={[
@@ -428,7 +428,8 @@ export default function SettingsPage() {
         {
           id: "vacation-mode",
           title: "Vacation mode",
-          description: "Pause everything — streaks are held, not broken, until you turn it off.",
+          description:
+            "Streaks hold instead of breaking, from the day you switch it on until the day you switch it off. Days before that are untouched.",
           control: (
             <Switch
               checked={settings.vacationMode}

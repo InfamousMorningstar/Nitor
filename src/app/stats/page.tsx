@@ -8,7 +8,8 @@ import { Sparkline } from "@/components/stats/Sparkline";
 import { useHabits } from "@/state/useHabits";
 import { computeStreak } from "@/domain/streaks";
 import { dailyCompletion, momentumSeries, weekdayRhythm, habitSparkline } from "@/domain/stats";
-import { addDays, diffDays, today } from "@/domain/dates";
+import { addDays, diffDays } from "@/domain/dates";
+import { useToday, useStreakOptions, useWeekOrder } from "@/state/useDateSettings";
 import type { Habit } from "@/domain/types";
 
 const eyebrow =
@@ -25,8 +26,7 @@ const RANGES: { key: RangeKey; label: string }[] = [
   { key: "all", label: "All" },
 ];
 
-function rangeFrom(range: RangeKey, habits: Habit[]): string {
-  const end = today();
+function rangeFrom(range: RangeKey, habits: Habit[], end: string): string {
   if (range === "30d") return addDays(end, -29);
   if (range === "90d") return addDays(end, -89);
   if (range === "1y") return addDays(end, -370); // ~53 weeks, GitHub-style
@@ -41,8 +41,10 @@ export default function StatsPage() {
   const [habitFilter, setHabitFilter] = useState<string>("all");
 
   const activeHabits = useMemo(() => habits.filter((h) => !h.archived), [habits]);
-  const end = today();
-  const from = useMemo(() => rangeFrom(range, habits), [range, habits]);
+  const end = useToday();
+  const streakOptions = useStreakOptions();
+  const weekOrder = useWeekOrder();
+  const from = useMemo(() => rangeFrom(range, habits, end), [range, habits, end]);
   const rangeDays = Math.max(1, diffDays(end, from) + 1);
 
   const heatmapHabits = useMemo(
@@ -69,7 +71,7 @@ export default function StatsPage() {
     () =>
       activeHabits.map((h) => {
         const habitLogs = logs.filter((l) => l.habitId === h.id);
-        const streak = computeStreak(h, habitLogs, end);
+        const streak = computeStreak(h, habitLogs, end, streakOptions);
         const daily = dailyCompletion([h], logs, from, end);
         const totals = daily.reduce(
           (acc, d) => ({ done: acc.done + d.done, scheduled: acc.scheduled + d.scheduled }),
@@ -79,7 +81,7 @@ export default function StatsPage() {
         const sparkline = habitSparkline(h, logs, SPARKLINE_DAYS);
         return { habit: h, streak, pct, sparkline };
       }),
-    [activeHabits, logs, from, end]
+    [activeHabits, logs, from, end, streakOptions]
   );
 
   return (
@@ -148,7 +150,7 @@ export default function StatsPage() {
             </section>
             <section className={card}>
               <h2 className="mb-4 text-sm font-medium [color:rgb(var(--text))]">Weekday rhythm</h2>
-              <WeekdayBars data={weekday} />
+              <WeekdayBars data={weekday} order={weekOrder} />
             </section>
           </div>
 

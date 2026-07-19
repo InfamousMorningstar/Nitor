@@ -7,7 +7,8 @@ import { MiniHeatmap } from "@/components/stats/MiniHeatmap";
 import { computeStreak, isComplete } from "@/domain/streaks";
 import { freezeBank, BANK_CAP } from "@/domain/freezes";
 import { editableDays, BACKDATE_DAYS } from "@/domain/backdate";
-import { today, weekdayOf } from "@/domain/dates";
+import { weekdayOf } from "@/domain/dates";
+import { useToday, useStreakOptions } from "@/state/useDateSettings";
 
 type Tab = "overview" | "edit" | "history";
 
@@ -49,9 +50,13 @@ export function HabitDetail({ habit, logs, onLog, onSaved }: HabitDetailProps) {
     edit: null,
     history: null,
   });
-  const now = today();
+  const now = useToday();
+  const streakOptions = useStreakOptions();
 
-  const streak = useMemo(() => computeStreak(habit, logs, now), [habit, logs, now]);
+  const streak = useMemo(
+    () => computeStreak(habit, logs, now, streakOptions),
+    [habit, logs, now, streakOptions],
+  );
   const bank = useMemo(() => freezeBank(habit, logs, now), [habit, logs, now]);
   const byDate = useMemo(() => new Map(logs.map((l) => [l.date, l])), [logs]);
 
