@@ -7,10 +7,55 @@ the frozen `HabitRepository` seam.
 **Branch:** `main` is the baseline. Active work is on `feat/phase2-identity` (pushed, not merged).
 **Status:** Phase 2 is underway. Identity/session is 16/19 tasks in; the Slice 2 persistence
 implementation is integrated behind RLS, with habit and log ownership enforced structurally
-(tenant-qualified keys plus a composite foreign key) rather than by application code. 362 tests
-pass across 42 files; TypeScript and the 24-page production build are clean.
+(tenant-qualified keys plus a composite foreign key) rather than by application code. **409 tests
+pass across 45 files**; TypeScript is clean and the production build is clean at **25 static
+pages** (was 24 before `/api/account` was added) and still prints `ƒ Proxy (Middleware)`.
 
-_Last updated: 2026-07-18._
+_Last updated: 2026-07-19._
+
+---
+
+## ▶️ RESUME HERE
+
+Everything below is committed and pushed. Pick up at step 1.
+
+**1. Apply the pending migration to the live database — this is the only blocking item.**
+`supabase/habits.sql` gained CHECK constraints (commit `ddba6fd`) that are **committed but NOT yet
+applied to the live Supabase project**, and the live verifier has **not** been run against them.
+Both steps were blocked by the sandbox permission classifier during the session that wrote them.
+
+Before applying, run the read-only preflight — `habits.sql` contains a top-level
+`delete from public.habits where created_at !~ …` that **cascades into logs**. The file's comment
+claims the live tables are empty; that claim has never been checked against the real database.
+
+```bash
+npx tsx --env-file=.env.local scripts/verify-rls.ts    # expect PASS, 27 checks
+```
+
+Apply `supabase/habits.sql` via the Supabase SQL editor (it is written to be re-runnable), then
+re-run the verifier.
+
+**2. Task 2 — email & password change.** Not started. Settings still shows a hardcoded
+`you@example.com` and two read-only placeholders. Notes already gathered:
+- `supabase.auth.updateUser({ email })` sends a confirmation whose link arrives at
+  `src/app/auth/confirm/route.ts`. That route currently special-cases only `recovery` and sweeps
+  **everything else** through the onboarding gate — `email_change` needs its own destination, plus
+  route tests. Check how Supabase's "secure email change" (confirm *both* addresses) behaves first.
+- Reuse the existing password-strength helpers under `src/app/(auth)/`; do not write a second
+  ruleset that can drift.
+- **Recommendation on record:** require the current password before a password change. Sessions are
+  long-lived cookies, so without it a borrowed logged-in browser is a silent full account takeover.
+
+**3. Task 3 — complete the data export.** Not started. `exportJson()` / `exportCsv()` in
+`src/app/settings/page.tsx` already work. Remaining: fetch a fresh complete copy rather than
+exporting whatever `useHabits` holds in memory, include profile + settings (never anything
+session-derived), verify archived habits are included, add a `schemaVersion` field, and fail
+loudly instead of downloading a partial file that looks complete. Import stays out of scope —
+only make its copy honest if it overclaims.
+
+**4. Known unknown.** `/api/account` is proven under mocks only. It has **never been exercised
+against a real auth user**, so the cascade has not been observed end-to-end. Do that once the live
+database access in step 1 is working.
 
 ---
 
@@ -41,12 +86,14 @@ _Last updated: 2026-07-18._
   **streak-risk** alert, **habit-stacking** suggestion, shareable **monthly recap** (wordmark).
 - **Pet** — `/pet` is back to an honest **Coming soon** state while the full Nix companion is
   deferred to a future phase.
-- **Settings** — grouped + searchable: account (stub), appearance (theme / 5 accents / density /
+- **Settings** — grouped + searchable: account (**real, irreversible account deletion**; email and
+  password still placeholders), appearance (theme / 5 accents / density /
   reduce-motion), habits & streaks (week-start, day-rollover, streak-freeze toggle, vacation mode),
   notifications (stub prefs), quotes (traditions), pet (rename), data (**export JSON + CSV**).
 - **Auth** — login / signup (password-strength bar) / forgot-password, split layout with Nix + a
   rotating quote, OAuth **stubs**; **3-step onboarding** (pick habits → reminder window → name pet).
-- **Landing** (`/`) — hero (headline + Nix + **Start free / Log in** paired CTAs), scroll story
+- **Landing** (`/`) — hero (headline + a weekly **momentum ledger** slab + **Start free / Log in**
+  paired CTAs; the pet was removed from every marketing surface once it was deferred), scroll story
   with **cursor + scroll parallax** and on-entry reveals, Why-Nitor strip, kinetic **NITOЯ**
   footer. Quiet editorial top nav = wordmark + **liquid light/dark switch** (gooey metaball, now
   flanked by sun/moon icons that brighten on the active side).
@@ -142,11 +189,15 @@ to 0 rows after cleanup.
 
 ## ⬜ Left to do
 
-1. **Finish identity/runtime gates** — Google OAuth; production SMTP after domain registration;
-   live cross-user RLS, quote top-up, authenticated redirects, and full signed-in browser flow.
-2. **Phase 2 slices 3–5**, each needing its own brainstorm → spec → plan: settings sync,
+1. **Apply the pending CHECK-constraint migration and re-run the live verifier** — see RESUME HERE.
+2. **Email & password change**, then **complete the data export** — see RESUME HERE.
+3. **Finish identity/runtime gates** — production SMTP after domain registration; live cross-user
+   RLS, quote top-up, authenticated redirects, and full signed-in browser flow. (Google OAuth is
+   *not* on this list: the live project reports `external.google: false` and its absence is
+   deliberate.)
+4. **Phase 2 slices 3–5**, each needing its own brainstorm → spec → plan: settings sync,
    notifications delivery, and import-merge.
-3. **Full Nix companion** — future roadmap work covering pet persistence, feed/evolution,
+5. **Full Nix companion** — future roadmap work covering pet persistence, feed/evolution,
    wardrobe, memory, and the final production asset. The visual asset still needs a Spline scene
    URL or rigged `.glb` with `idle/eat/happy/sleepy/evolve` states.
 
@@ -165,6 +216,15 @@ Five defects were caught on the slice-1 branch before shipping, and **every one 
 - **`safeNext`'s output must reach the redirect verbatim** — never `decodeURIComponent` it.
 - **Turnstile callbacks must stay behind refs** — inline arrows tore the widget down on every
   keystroke and discarded the solved token.
+- **supabase-js RETURNS errors rather than throwing, and a zero-row operation is not an error.**
+  Success needs positive evidence, not merely the absence of an error — `/api/account` re-reads the
+  user and requires it to be *absent* before reporting a successful delete.
+- **Deleting an auth user does not invalidate its already-issued access token.** The JWT stays
+  signature-valid until expiry, so clearing the session cookies is what actually ends the session.
+- **Two writing agents in one checkout will corrupt a test run.** A `npm test` mid-session reported
+  `3 failed | 406 passed`; the three failures were a Codex test file that existed while its
+  component edits were still being written. Four later runs were clean. Not a flake — a race. Give
+  concurrent agents disjoint files (or a worktree), and re-run before believing a failure.
 
 ---
 
