@@ -150,7 +150,11 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [pwStub, setPwStub] = useState(false);
   const [deleteText, setDeleteText] = useState("");
-  const [deleted, setDeleted] = useState(false);
+  // Deletion is irreversible and can fail, so the UI tracks the attempt rather
+  // than a boolean "done". Navigating on anything other than a confirmed
+  // success would tell the user their account is gone when it is not.
+  const [deleteState, setDeleteState] = useState<"idle" | "deleting" | "error">("idle");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Data — import stub
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -269,7 +273,7 @@ export default function SettingsPage() {
           id: "delete-account",
           title: "Delete account",
           description:
-            'Type "delete" to confirm. Account deletion isn\'t available yet — nothing is removed. Email me and I\'ll do it by hand.',
+            'Permanently deletes your login, profile, every habit and every log. This is irreversible and there is no grace period — nothing is archived and nothing can be restored. Export your data first if you want a copy. Type "delete" to confirm.',
           control: (
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2">
@@ -281,19 +285,51 @@ export default function SettingsPage() {
                 />
                 <button
                   type="button"
-                  disabled={deleteText.trim().toLowerCase() !== "delete"}
-                  onClick={() => {
-                    setDeleted(true);
-                    setDeleteText("");
+                  disabled={
+                    deleteText.trim().toLowerCase() !== "delete" || deleteState === "deleting"
+                  }
+                  onClick={async () => {
+                    setDeleteState("deleting");
+                    setDeleteError(null);
+                    try {
+                      const res = await fetch("/api/account", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ confirm: "delete" }),
+                      });
+                      if (!res.ok) {
+                        // Stay put and say so. Navigating here would tell the
+                        // user their account is gone while it still exists.
+                        setDeleteState("error");
+                        setDeleteError(
+                          res.status === 401
+                            ? "Your session expired. Sign in again and retry."
+                            : "The account could not be deleted. Nothing was removed — try again, or email me.",
+                        );
+                        return;
+                      }
+                      setDeleteText("");
+                      // Hard navigation, not a client route change: the session
+                      // cookies are gone and every cached store in memory now
+                      // describes an account that no longer exists.
+                      window.location.assign("/?deleted=1");
+                    } catch {
+                      setDeleteState("error");
+                      setDeleteError(
+                        "Could not reach the server. Nothing was removed — check your connection and try again.",
+                      );
+                    }
                   }}
                   className={`${pillButton} [border-color:rgb(var(--hairline)/0.16)] [color:rgb(var(--text))] disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:[border-color:rgb(var(--text))]`}
                 >
-                  Delete account
+                  {deleteState === "deleting" ? "Deleting…" : "Delete account"}
                 </button>
               </div>
-              {deleted && (
-                <span className="text-[11px] [color:rgb(var(--text-mute))]">
-                  Stubbed — no backend call was made.
+              {/* Amber, not red: the palette has no danger hue by design, and
+                  FieldError sets the precedent for error text. */}
+              {deleteState === "error" && deleteError && (
+                <span role="alert" className="max-w-[280px] text-right text-[11px] [color:rgb(var(--accent))]">
+                  {deleteError}
                 </span>
               )}
             </div>
