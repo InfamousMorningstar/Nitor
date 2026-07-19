@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { AppFrame } from "@/components/app/AppFrame";
 import { useTheme } from "@/state/theme";
 import { useHabits } from "@/state/useHabits";
@@ -150,7 +150,11 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [pwStub, setPwStub] = useState(false);
   const [deleteText, setDeleteText] = useState("");
-  const [deleted, setDeleted] = useState(false);
+  // Deletion is irreversible and can fail, so the UI tracks the attempt rather
+  // than a boolean "done". Navigating on anything other than a confirmed
+  // success would tell the user their account is gone when it is not.
+  const [deleteState, setDeleteState] = useState<"idle" | "deleting" | "error">("idle");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Data — import stub
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -180,7 +184,6 @@ export default function SettingsPage() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      // eslint-disable-next-line no-console
       console.log("Nitor import (stub — not merged):", parsed);
       const habitCount = Array.isArray(parsed?.habits) ? parsed.habits.length : 0;
       const logCount = Array.isArray(parsed?.logs) ? parsed.logs.length : 0;
@@ -214,7 +217,7 @@ export default function SettingsPage() {
         {
           id: "email",
           title: "Email",
-          description: "Read-only for now — no account backend yet.",
+          description: "Read-only for now — changing your email isn't available yet.",
           control: (
             <input
               value="you@example.com"
@@ -239,7 +242,7 @@ export default function SettingsPage() {
               </button>
               {pwStub && (
                 <span className="text-[11px] [color:rgb(var(--text-mute))]">
-                  No backend yet — stubbed.
+                  Changing your password here isn&rsquo;t available yet.
                 </span>
               )}
             </div>
@@ -269,7 +272,8 @@ export default function SettingsPage() {
         {
           id: "delete-account",
           title: "Delete account",
-          description: 'Type "delete" to confirm. This is stubbed — nothing is actually deleted.',
+          description:
+            'Permanently deletes your login, profile, every habit and every log. This is irreversible and there is no grace period — nothing is archived and nothing can be restored. Export your data first if you want a copy. Type "delete" to confirm.',
           control: (
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2">
@@ -281,19 +285,51 @@ export default function SettingsPage() {
                 />
                 <button
                   type="button"
-                  disabled={deleteText.trim().toLowerCase() !== "delete"}
-                  onClick={() => {
-                    setDeleted(true);
-                    setDeleteText("");
+                  disabled={
+                    deleteText.trim().toLowerCase() !== "delete" || deleteState === "deleting"
+                  }
+                  onClick={async () => {
+                    setDeleteState("deleting");
+                    setDeleteError(null);
+                    try {
+                      const res = await fetch("/api/account", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ confirm: "delete" }),
+                      });
+                      if (!res.ok) {
+                        // Stay put and say so. Navigating here would tell the
+                        // user their account is gone while it still exists.
+                        setDeleteState("error");
+                        setDeleteError(
+                          res.status === 401
+                            ? "Your session expired. Sign in again and retry."
+                            : "The account could not be deleted. Nothing was removed — try again, or email me.",
+                        );
+                        return;
+                      }
+                      setDeleteText("");
+                      // Hard navigation, not a client route change: the session
+                      // cookies are gone and every cached store in memory now
+                      // describes an account that no longer exists.
+                      window.location.assign("/?deleted=1");
+                    } catch {
+                      setDeleteState("error");
+                      setDeleteError(
+                        "Could not reach the server. Nothing was removed — check your connection and try again.",
+                      );
+                    }
                   }}
                   className={`${pillButton} [border-color:rgb(var(--hairline)/0.16)] [color:rgb(var(--text))] disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:[border-color:rgb(var(--text))]`}
                 >
-                  Delete account
+                  {deleteState === "deleting" ? "Deleting…" : "Delete account"}
                 </button>
               </div>
-              {deleted && (
-                <span className="text-[11px] [color:rgb(var(--text-mute))]">
-                  Stubbed — no backend call was made.
+              {/* Amber, not red: the palette has no danger hue by design, and
+                  FieldError sets the precedent for error text. */}
+              {deleteState === "error" && deleteError && (
+                <span role="alert" className="max-w-[280px] text-right text-[11px] [color:rgb(var(--accent))]">
+                  {deleteError}
                 </span>
               )}
             </div>
@@ -383,7 +419,7 @@ export default function SettingsPage() {
         {
           id: "week-starts-on",
           title: "Week starts on",
-          description: "Controls how weekday schedules and weekly stats are laid out.",
+          description: "Sets which day your weekly stats start from.",
           control: (
             <PillSelect
               options={[
@@ -428,7 +464,8 @@ export default function SettingsPage() {
         {
           id: "vacation-mode",
           title: "Vacation mode",
-          description: "Pause everything — streaks are held, not broken, until you turn it off.",
+          description:
+            "Streaks hold instead of breaking, from the day you switch it on until the day you switch it off. Days before that are untouched.",
           control: (
             <Switch
               checked={settings.vacationMode}
@@ -652,8 +689,8 @@ export default function SettingsPage() {
           ),
         },
         {
-          id: "what-we-store",
-          title: "What we store",
+          id: "stored-data",
+          title: "Stored data",
           description:
             "Everything lives in this browser — habits, logs, and these preferences. Nothing is sent anywhere.",
           control: (
@@ -678,7 +715,8 @@ export default function SettingsPage() {
             Settings
           </h1>
           <p className="mt-1 text-sm [color:rgb(var(--text-mute))]">
-            Grouped, searchable, and kept entirely on this device.
+            Grouped and searchable. Preferences stay on this device; habits and
+            logs sync to your account.
           </p>
         </div>
 

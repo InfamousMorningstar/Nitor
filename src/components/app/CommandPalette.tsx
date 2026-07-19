@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { NAV_ITEMS } from "@/components/nav/navItems";
+import { useDialogFocus } from "@/components/a11y/useDialogFocus";
 
 interface PaletteAction {
   id: string;
@@ -22,7 +23,6 @@ export function CommandPalette() {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const actions: PaletteAction[] = useMemo(() => {
     const navActions = NAV_ITEMS.map((item) => ({
@@ -43,37 +43,34 @@ export function CommandPalette() {
     return actions.filter((a) => a.label.toLowerCase().includes(q));
   }, [actions, query]);
 
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [filtered.length]);
-
   // Global toggle shortcut.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((v) => !v);
+        setOpen((wasOpen) => {
+          if (!wasOpen) {
+            setQuery("");
+            setActiveIndex(0);
+          }
+          return !wasOpen;
+        });
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Reset + focus on open, restore focus on close.
-  useEffect(() => {
-    if (open) {
-      previousFocusRef.current = document.activeElement as HTMLElement | null;
-      setQuery("");
-      setActiveIndex(0);
-      const id = requestAnimationFrame(() => inputRef.current?.focus());
-      return () => cancelAnimationFrame(id);
-    }
-    previousFocusRef.current?.focus?.();
-  }, [open]);
-
   function close() {
     setOpen(false);
   }
+
+  useDialogFocus({
+    open,
+    onClose: close,
+    containerRef,
+    initialFocusRef: inputRef,
+  });
 
   function run(action: PaletteAction) {
     router.push(action.href);
@@ -81,11 +78,6 @@ export function CommandPalette() {
   }
 
   function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      close();
-      return;
-    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIndex((i) => Math.min(i + 1, Math.max(filtered.length - 1, 0)));
@@ -101,23 +93,6 @@ export function CommandPalette() {
       const action = filtered[activeIndex];
       if (action) run(action);
       return;
-    }
-    if (e.key === "Tab") {
-      const container = containerRef.current;
-      if (!container) return;
-      const focusable = container.querySelectorAll<HTMLElement>(
-        'input, button, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
     }
   }
 
@@ -140,7 +115,10 @@ export function CommandPalette() {
         <input
           ref={inputRef}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setActiveIndex(0);
+          }}
           placeholder="Type a command…"
           aria-label="Search commands"
           className="w-full border-b bg-transparent px-4 py-3 text-sm outline-none [border-color:rgb(var(--hairline)/0.08)] [color:rgb(var(--text))] placeholder:[color:rgb(var(--text-mute))]"
@@ -155,8 +133,9 @@ export function CommandPalette() {
                 type="button"
                 onClick={() => run(action)}
                 onMouseEnter={() => setActiveIndex(i)}
+                onFocus={() => setActiveIndex(i)}
                 className={
-                  "flex w-full items-center px-4 py-2.5 text-left text-sm transition-colors duration-[var(--dur-micro)] " +
+                  "flex w-full items-center px-4 py-2.5 text-left text-sm transition-colors duration-[var(--dur-micro)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[rgb(var(--accent))] " +
                   (i === activeIndex
                     ? "[background:rgb(var(--surface-2))] [color:rgb(var(--accent))]"
                     : "[color:rgb(var(--text-dim))]")

@@ -36,7 +36,7 @@ export function FreezePrompt({
       <button
         type="button"
         onClick={onUse}
-        className="rounded-full px-4 py-2 text-sm font-medium [background:rgb(var(--accent))] [color:rgb(var(--bg))] transition-transform duration-[var(--dur-micro)] active:scale-[0.98] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+        className="rounded-full px-4 py-2 text-sm font-medium [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))] transition-transform duration-[var(--dur-micro)] active:scale-[0.98] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
       >
         Use a freeze
       </button>

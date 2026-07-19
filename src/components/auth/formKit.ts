@@ -42,7 +42,12 @@ export function requiredError(value: string, label = "This field"): string | und
   return undefined;
 }
 
-export function passwordError(value: string, minLength = 8): string | undefined {
+/**
+ * Minimum 12 to match the Supabase project's password policy (S10). A lower
+ * value here means a password the form accepts and the API rejects, surfacing
+ * as a raw server error instead of Nitor's own message.
+ */
+export function passwordError(value: string, minLength = 12): string | undefined {
   if (!value) return "Password is required.";
   if (value.length < minLength) return `Use at least ${minLength} characters.`;
   return undefined;

@@ -1,7 +1,8 @@
 -- Nitor quotes table: optional Supabase top-up for the bundled quote pool.
 -- Run once against a provisioned Supabase project (SQL editor or `supabase db push`).
--- After running this, set NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY
--- and SUPABASE_SERVICE_ROLE_KEY, then seed with `npx tsx scripts/seed-quotes.ts`.
+-- After running this, set NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+-- and SUPABASE_SECRET_KEY (S2 — never the legacy anon/service_role keys), then
+-- seed with `npx tsx scripts/seed-quotes.ts`.
 
 create table if not exists public.quotes (
   id uuid primary key default gen_random_uuid(),
@@ -17,6 +18,10 @@ create table if not exists public.quotes (
 -- upsert (on_conflict=text) idempotent across repeated runs.
 
 alter table public.quotes enable row level security;
+
+-- `create policy` has no `if not exists` form, so the policy is dropped first.
+-- Without this the file aborts on a re-run (42710).
+drop policy if exists "public read" on public.quotes;
 
 create policy "public read" on public.quotes for select using (true);
 

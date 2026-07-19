@@ -8,7 +8,8 @@ import { Sparkline } from "@/components/stats/Sparkline";
 import { useHabits } from "@/state/useHabits";
 import { computeStreak } from "@/domain/streaks";
 import { dailyCompletion, momentumSeries, weekdayRhythm, habitSparkline } from "@/domain/stats";
-import { addDays, diffDays, today } from "@/domain/dates";
+import { addDays, diffDays } from "@/domain/dates";
+import { useToday, useStreakOptions, useWeekOrder } from "@/state/useDateSettings";
 import type { Habit } from "@/domain/types";
 
 const eyebrow =
@@ -25,8 +26,7 @@ const RANGES: { key: RangeKey; label: string }[] = [
   { key: "all", label: "All" },
 ];
 
-function rangeFrom(range: RangeKey, habits: Habit[]): string {
-  const end = today();
+function rangeFrom(range: RangeKey, habits: Habit[], end: string): string {
   if (range === "30d") return addDays(end, -29);
   if (range === "90d") return addDays(end, -89);
   if (range === "1y") return addDays(end, -370); // ~53 weeks, GitHub-style
@@ -41,8 +41,10 @@ export default function StatsPage() {
   const [habitFilter, setHabitFilter] = useState<string>("all");
 
   const activeHabits = useMemo(() => habits.filter((h) => !h.archived), [habits]);
-  const end = today();
-  const from = useMemo(() => rangeFrom(range, habits), [range, habits]);
+  const end = useToday();
+  const streakOptions = useStreakOptions();
+  const weekOrder = useWeekOrder();
+  const from = useMemo(() => rangeFrom(range, habits, end), [range, habits, end]);
   const rangeDays = Math.max(1, diffDays(end, from) + 1);
 
   const heatmapHabits = useMemo(
@@ -69,7 +71,7 @@ export default function StatsPage() {
     () =>
       activeHabits.map((h) => {
         const habitLogs = logs.filter((l) => l.habitId === h.id);
-        const streak = computeStreak(h, habitLogs, end);
+        const streak = computeStreak(h, habitLogs, end, streakOptions);
         const daily = dailyCompletion([h], logs, from, end);
         const totals = daily.reduce(
           (acc, d) => ({ done: acc.done + d.done, scheduled: acc.scheduled + d.scheduled }),
@@ -79,7 +81,7 @@ export default function StatsPage() {
         const sparkline = habitSparkline(h, logs, SPARKLINE_DAYS);
         return { habit: h, streak, pct, sparkline };
       }),
-    [activeHabits, logs, from, end]
+    [activeHabits, logs, from, end, streakOptions]
   );
 
   return (
@@ -105,7 +107,7 @@ export default function StatsPage() {
               onClick={() => setRange(r.key)}
               className={`${mono} rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.06em] transition-colors duration-[var(--dur-micro)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] ${
                 range === r.key
-                  ? "[background:rgb(var(--accent))] [color:rgb(var(--bg))]"
+                  ? "[background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))]"
                   : "[color:rgb(var(--text-mute))] hover:[color:rgb(var(--text-dim))]"
               }`}
             >
@@ -148,12 +150,37 @@ export default function StatsPage() {
             </section>
             <section className={card}>
               <h2 className="mb-4 text-sm font-medium [color:rgb(var(--text))]">Weekday rhythm</h2>
-              <WeekdayBars data={weekday} />
+              <WeekdayBars data={weekday} order={weekOrder} />
             </section>
           </div>
 
           <section>
             <h2 className="mb-3 text-sm font-medium [color:rgb(var(--text))]">Per habit</h2>
+            {sparkrows.length > 0 && (
+              <table className="sr-only">
+                <caption>Per-habit completion summary</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Habit</th>
+                    <th scope="col">Current streak</th>
+                    <th scope="col">Best streak</th>
+                    <th scope="col">Completion %</th>
+                    <th scope="col">Recent daily completions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sparkrows.map(({ habit, streak, pct, sparkline }) => (
+                    <tr key={habit.id}>
+                      <th scope="row">{habit.name}</th>
+                      <td>{streak.current}</td>
+                      <td>{streak.longest}</td>
+                      <td>{pct}</td>
+                      <td>{sparkline.join(", ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
             {sparkrows.length === 0 ? (
               <p className="[color:rgb(var(--text-dim))]">No habits yet.</p>
             ) : (
@@ -174,6 +201,7 @@ export default function StatsPage() {
                     <span
                       className={`${mono} shrink-0 text-right text-[11px] [color:rgb(var(--text-mute))]`}
                       title="Current / best streak"
+                      aria-label={`Current streak ${streak.current} days; best streak ${streak.longest} days`}
                     >
                       <span className="[color:rgb(var(--accent))]">{streak.current}</span>
                       <span> / {streak.longest}</span>

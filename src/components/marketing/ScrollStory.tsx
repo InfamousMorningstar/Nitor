@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { NixCreature } from "@/components/pet/NixCreature";
 import { quoteOfDay } from "@/domain/quotes";
 import { today } from "@/domain/dates";
 
@@ -27,7 +26,7 @@ function levelFor(i: number): number {
 const ACTS = [
   { n: "01", title: "One tap to log", blurb: "No forms, no friction. Tap once and it’s done." },
   { n: "02", title: "Your consistency, drawn", blurb: "A year of showing up, one cell at a time." },
-  { n: "03", title: "A pet that lives on your discipline", blurb: "Nix doesn’t perform tricks — it just reflects how you’ve been doing." },
+  { n: "03", title: "A streak that knows the difference", blurb: "Grace days and earned freezes keep one rough day from erasing the work around it." },
   { n: "04", title: "Words that actually happened", blurb: "Real people, real sources. No fortune-cookie wisdom." },
 ] as const;
 
@@ -47,6 +46,48 @@ function ActHeading({ n, title, blurb }: ActHeadingProps) {
         {title}
       </h2>
       <p className="mt-4 text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">{blurb}</p>
+    </div>
+  );
+}
+
+function ForgivingStreakVisual() {
+  return (
+    <div className="w-full rounded-2xl border p-6 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))]">
+      <div className="flex items-start justify-between gap-5">
+        <div>
+          <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]">
+            Wednesday
+          </p>
+          <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-medium tracking-tight [color:rgb(var(--text))]">
+            Grace day
+          </p>
+        </div>
+        <span className="rounded-full px-3 py-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [background:rgb(var(--accent)/0.14)] [color:rgb(var(--accent))]">
+          Streak intact
+        </span>
+      </div>
+
+      <div className="mt-8 grid grid-cols-2 gap-6 border-t pt-6 [border-color:rgb(var(--hairline)/0.08)]">
+        <div>
+          <p className="font-[family-name:var(--font-mono)] text-3xl tabular-nums [color:rgb(var(--text))]">
+            18
+          </p>
+          <p className="mt-1 text-sm [color:rgb(var(--text-mute))]">day streak</p>
+        </div>
+        <div>
+          <p className="font-[family-name:var(--font-mono)] text-3xl tabular-nums [color:rgb(var(--text))]">
+            82
+          </p>
+          <p className="mt-1 text-sm [color:rgb(var(--text-mute))]">momentum</p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-center gap-3 border-t pt-5 [border-color:rgb(var(--hairline)/0.08)]">
+        <span className="h-2 w-2 rounded-full [background:rgb(var(--accent))]" aria-hidden="true" />
+        <p className="text-sm [color:rgb(var(--text-dim))]">
+          One earned freeze stays banked.
+        </p>
+      </div>
     </div>
   );
 }
@@ -80,8 +121,6 @@ export function ScrollStory() {
   const streakLabelRef = useRef<HTMLSpanElement>(null);
   // Act 2 — heatmap
   const cellRefs = useRef<Array<SVGRectElement | null>>([]);
-  // Act 3 — pet
-  const [petGlow, setPetGlow] = useState(0.2);
   // Act 4 — quote
   const quoteSpanRef = useRef<HTMLSpanElement>(null);
 
@@ -174,18 +213,6 @@ export function ScrollStory() {
           );
         }
 
-        // Act 3 — pet glow rises.
-        if (sectionRefs.current[2]) {
-          const proxy = { g: 0.2 };
-          gsap.to(proxy, {
-            g: 1,
-            duration: 1.3,
-            ease: "power2.out",
-            scrollTrigger: onEnter(sectionRefs.current[2]!),
-            onUpdate: () => setPetGlow(proxy.g),
-          });
-        }
-
         // Act 4 — quote types itself.
         if (sectionRefs.current[3] && quoteSpanRef.current) {
           const el = quoteSpanRef.current;
@@ -244,7 +271,7 @@ export function ScrollStory() {
               </div>
               <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border [border-color:rgb(var(--hairline)/0.16)]">
                 <span ref={checkFillRef} className="absolute inset-0 grid place-items-center rounded-full [background:rgb(var(--accent))]" aria-hidden="true">
-                  <span ref={checkMarkRef} className="text-lg [color:rgb(var(--bg))]">&#10003;</span>
+                  <span ref={checkMarkRef} className="text-lg [color:rgb(var(--accent-contrast))]">&#10003;</span>
                 </span>
               </span>
               <span ref={streakLabelRef} className="absolute -right-2 -top-3 rounded-full border px-2 py-0.5 font-[family-name:var(--font-mono)] text-[11px] [border-color:rgb(var(--hairline)/0.16)] [background:rgb(var(--surface))] [color:rgb(var(--accent))]">
@@ -300,7 +327,7 @@ export function ScrollStory() {
             <ActHeading {...ACTS[2]} />
           </div>
           <div ref={setVis(2)} className="mx-auto flex w-full max-w-[380px] items-center justify-center" style={{ willChange: "transform" }}>
-            <NixCreature glow={petGlow} state={petGlow >= 0.9 ? "radiant" : "idle"} size={190} />
+            <ForgivingStreakVisual />
           </div>
         </div>
       </section>
@@ -349,7 +376,7 @@ function StaticStory({
                 <div className="truncate text-[15px] [color:rgb(var(--text))]">Read 20 pages</div>
                 <div className="mt-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.06em] [color:rgb(var(--text-mute))]">Daily</div>
               </div>
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full [background:rgb(var(--accent))] [color:rgb(var(--bg))]">&#10003;</span>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))]">&#10003;</span>
               <span className="absolute -right-2 -top-3 rounded-full border px-2 py-0.5 font-[family-name:var(--font-mono)] text-[11px] [border-color:rgb(var(--hairline)/0.16)] [background:rgb(var(--surface))] [color:rgb(var(--accent))]">
                 streak +1
               </span>
@@ -385,7 +412,7 @@ function StaticStory({
         <div className={INNER}>
           <ActHeading {...ACTS[2]} />
           <div className="mx-auto flex w-full max-w-[380px] items-center justify-center">
-            <NixCreature glow={1} state="radiant" size={190} />
+            <ForgivingStreakVisual />
           </div>
         </div>
       </section>

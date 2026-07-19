@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Glitch } from "@/components/brand/Glitch";
 import { BetaChip } from "@/components/ui/BetaChip";
+import { useSession } from "@/state/SessionProvider";
 import { NAV_ITEMS } from "./navItems";
 
 /**
@@ -13,6 +14,9 @@ import { NAV_ITEMS } from "./navItems";
  */
 export function Sidebar() {
   const pathname = usePathname();
+  const { user, profile, signOut } = useSession();
+  const label = profile?.display_name || user?.email || "You";
+  const initial = label.charAt(0).toUpperCase();
   return (
     <div className="fixed left-0 top-0 z-40 hidden h-screen w-60 flex-col border-r [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))] md:flex">
       <div className="flex items-center gap-2.5 px-6 py-6">
@@ -46,14 +50,25 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-auto flex items-center gap-3 border-t px-6 py-5 [border-color:rgb(var(--hairline)/0.08)]">
-        <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-medium [background:rgb(var(--surface-2))] [color:rgb(var(--text-dim))]"
-          aria-hidden="true"
+      <div className="mt-auto border-t px-6 py-5 [border-color:rgb(var(--hairline)/0.08)]">
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-medium [background:rgb(var(--surface-2))] [color:rgb(var(--text-dim))]"
+            aria-hidden="true"
+          >
+            {initial}
+          </span>
+          <span className="truncate text-sm [color:rgb(var(--text-dim))]" title={label}>
+            {label}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="mt-3 text-xs [color:rgb(var(--text-mute))] transition-colors duration-[var(--dur-micro)] [transition-timing-function:var(--ease)] hover:[color:rgb(var(--accent))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] rounded-sm"
         >
-          Y
-        </span>
-        <span className="truncate text-sm [color:rgb(var(--text-dim))]">You</span>
+          Sign out
+        </button>
       </div>
     </div>
   );

@@ -35,7 +35,38 @@ function logByDate(logs: Log[]): Map<string, Log> {
   return m;
 }
 
-export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak {
+export interface StreakOptions {
+  /**
+   * The date vacation mode was switched on, or null. Scheduled days on or
+   * after it count as protected rather than missed.
+   *
+   * A date rather than a boolean, because a bare "vacation is on" flag cannot
+   * say WHEN it became true, and computeStreak walks history — it would either
+   * forgive every past miss or none of them. Anchoring to the switch-on date
+   * forgives exactly the days the user was actually away, and turning vacation
+   * off stops the protection without retroactively rewriting anything.
+   */
+  vacationSince?: string | null;
+}
+
+/** Whether a scheduled day counts as kept: logged, graced, frozen, or on vacation. */
+function isProtected(
+  habit: Habit,
+  log: Log | undefined,
+  date: string,
+  vacationSince: string | null | undefined,
+): boolean {
+  if (isComplete(habit, log) || log?.isGraceDay || log?.isFreeze) return true;
+  return Boolean(vacationSince) && diffDays(date, vacationSince as string) >= 0;
+}
+
+export function computeStreak(
+  habit: Habit,
+  logs: Log[],
+  asOf?: string,
+  opts: StreakOptions = {},
+): Streak {
+  const { vacationSince } = opts;
   const byDate = logByDate(logs);
   const end =
     asOf ??
@@ -50,7 +81,7 @@ export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak 
     if (diffDays(cursor, habit.createdAt) < 0) break;
     if (isScheduledOn(habit, cursor)) {
       const l = byDate.get(cursor);
-      if (isComplete(habit, l) || l?.isGraceDay || l?.isFreeze) current++;
+      if (isProtected(habit, l, cursor, vacationSince)) current++;
       else break;
     }
     cursor = addDays(cursor, -1);
@@ -62,7 +93,7 @@ export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak 
   for (let d = habit.createdAt; diffDays(end, d) >= 0; d = addDays(d, 1)) {
     if (!isScheduledOn(habit, d)) continue;
     const l = byDate.get(d);
-    if (isComplete(habit, l) || l?.isGraceDay || l?.isFreeze) {
+    if (isProtected(habit, l, d, vacationSince)) {
       run++;
       longest = Math.max(longest, run);
     } else {
@@ -79,7 +110,7 @@ export function computeStreak(habit: Habit, logs: Log[], asOf?: string): Streak 
     if (isScheduledOn(habit, momentumCursor)) {
       scheduled++;
       const l = byDate.get(momentumCursor);
-      if (isComplete(habit, l) || l?.isGraceDay || l?.isFreeze) good++;
+      if (isProtected(habit, l, momentumCursor, vacationSince)) good++;
     }
     momentumCursor = addDays(momentumCursor, -1);
   }

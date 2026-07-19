@@ -2,7 +2,8 @@
 import { useId, useState } from "react";
 import type { WeekdayPoint } from "@/domain/stats";
 
-const ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun display order
+/** Mon-first fallback, matching the store's default weekStartsOn. */
+const DEFAULT_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const LABELS: Record<number, string> = {
   0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat",
 };
@@ -22,15 +23,17 @@ function roundedTopPath(x: number, y: number, w: number, h: number, r: number): 
 
 interface WeekdayBarsProps {
   data: WeekdayPoint[];
+  /** Weekday indices (0=Sun..6=Sat) in display order, from the user's week-start setting. */
+  order?: number[];
 }
 
 /** 7 vertical bars (Mon-Sun) showing per-weekday completion rate. Matte accent fills. */
-export function WeekdayBars({ data }: WeekdayBarsProps) {
+export function WeekdayBars({ data, order = DEFAULT_ORDER }: WeekdayBarsProps) {
   const titleId = useId();
   const [hover, setHover] = useState<number | null>(null);
 
   const byWeekday = new Map(data.map((d) => [d.weekday, d.pct]));
-  const ordered = ORDER.map((weekday) => ({ weekday, pct: byWeekday.get(weekday) ?? 0 }));
+  const ordered = order.map((weekday) => ({ weekday, pct: byWeekday.get(weekday) ?? 0 }));
 
   const plotH = HEIGHT - PAD_T - PAD_B;
   const barW = (WIDTH - BAR_GAP * (ordered.length - 1)) / ordered.length;
@@ -89,7 +92,7 @@ export function WeekdayBars({ data }: WeekdayBarsProps) {
                   tabIndex={0}
                   role="img"
                   aria-label={`${LABELS[d.weekday]}: ${d.pct}% completion`}
-                  className="outline-none cursor-default"
+                  className="outline-none cursor-default focus-visible:[stroke:rgb(var(--text))] focus-visible:[stroke-width:2px]"
                   onMouseEnter={() => setHover(i)}
                   onMouseLeave={() => setHover(null)}
                   onFocus={() => setHover(i)}

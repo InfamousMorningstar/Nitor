@@ -1,58 +1,82 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { FieldError } from "@/components/auth/FieldError";
+import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
+import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/auth/redirect";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, emailError, requiredError } from "@/components/auth/formKit";
+import { authLinkErrorMessage } from "@/components/auth/errorCopy";
 
-type Mode = "password" | "magic-sent";
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [mode, setMode] = useState<Mode>("password");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // /auth/confirm and /auth/callback land here with ?error= when a link is
+  // expired or an exchange fails; without this the user sees a silent login
+  // page. Whitelist-mapped — an unknown value renders nothing, never echoed.
+  const [serverError, setServerError] = useState<string | undefined>(() =>
+    authLinkErrorMessage(searchParams.get("error")),
+  );
+  const [busy, setBusy] = useState(false);
+  const turnstile = useRef<TurnstileHandle>(null);
 
   const emailErr = submitted ? emailError(email) : undefined;
   const passwordErr = submitted ? requiredError(password, "Password") : undefined;
 
-  function handleSubmit(e: React.FormEvent) {
+  // Turnstile's onError means the challenge can never be solved (script blocked
+  // by an ad blocker or the network), which a null token cannot express. Without
+  // surfacing it the user sees a form that rejects every submit and no visible
+  // challenge. Must be a STABLE reference: pass a useCallback (or a plain state
+  // setter), never an inline arrow.
+  const handleCaptchaUnavailable = useCallback(() => {
+    setServerError(
+      "Verification could not load. Disable your ad blocker or try another network.",
+    );
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
+    setServerError(undefined);
     if (emailError(email) || requiredError(password, "Password")) return;
-    // Stubbed — no real auth call, just route into the app.
-    router.push("/today");
-  }
+    if (!captchaToken) {
+      setServerError("Please complete the challenge.");
+      return;
+    }
 
-  function handleMagicLink() {
-    setSubmitted(true);
-    if (emailError(email)) return;
-    setMode("magic-sent");
-  }
+    setBusy(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
 
-  if (mode === "magic-sent") {
-    return (
-      <AuthShell>
-        <p className={eyebrow}>Magic link</p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight [color:rgb(var(--text))]">
-          Check your email
-        </h1>
-        <p className="mt-3 text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
-          We sent a sign-in link to <span className="[color:rgb(var(--text))]">{email}</span>. Open
-          it on this device to continue.
-        </p>
-        <button
-          type="button"
-          onClick={() => setMode("password")}
-          className={`${accentLink} mt-6 inline-block`}
-        >
-          &larr; Back to sign in
-        </button>
-      </AuthShell>
-    );
+      if (error) {
+        // Deliberately generic: never reveal whether the address has an account.
+        setServerError("That email or password is not right.");
+        return;
+      }
+
+      // safeNext rejects attacker-supplied absolute/protocol-relative targets (S9).
+      router.push(safeNext(searchParams.get("next")));
+      router.refresh();
+    } catch {
+      // signInWithPassword returns { error } for every AuthError; a throw here is
+      // a non-auth failure (network layer). Not a credentials problem, so keep the
+      // message generic rather than reusing the returned-error copy.
+      setServerError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+      turnstile.current?.reset(); // single-use token (S11)
+    }
   }
 
   return (
@@ -62,17 +86,7 @@ export default function LoginPage() {
         Log in
       </h1>
 
-      <div className="mt-8">
-        <OAuthButtons redirectTo="/today" />
-      </div>
-
-      <div className="my-6 flex items-center gap-3" aria-hidden="true">
-        <div className="h-px flex-1 [background:rgb(var(--hairline)/0.1)]" />
-        <span className={eyebrow}>or</span>
-        <div className="h-px flex-1 [background:rgb(var(--hairline)/0.1)]" />
-      </div>
-
-      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+      <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
         <div>
           <label htmlFor="login-email" className={`${eyebrow} mb-2 block`}>
             Email
@@ -112,12 +126,15 @@ export default function LoginPage() {
           <FieldError message={passwordErr} />
         </div>
 
-        <button type="submit" className={primaryButton}>
-          Log in
-        </button>
+        <Turnstile
+          ref={turnstile}
+          onToken={setCaptchaToken}
+          onError={handleCaptchaUnavailable}
+        />
+        <FieldError message={serverError} />
 
-        <button type="button" onClick={handleMagicLink} className={`${accentLink} block w-full text-center`}>
-          Email me a magic link instead
+        <button type="submit" className={primaryButton} disabled={busy}>
+          {busy ? "Signing in…" : "Log in"}
         </button>
       </form>
 
@@ -128,5 +145,15 @@ export default function LoginPage() {
         </Link>
       </p>
     </AuthShell>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary during static rendering —
+// without one, `next build` fails on this page.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

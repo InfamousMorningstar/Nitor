@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Sidebar } from "@/components/nav/Sidebar";
 import { TabBar } from "@/components/nav/TabBar";
 import { CommandPalette } from "@/components/app/CommandPalette";
-import { today } from "@/domain/dates";
+import { useToday } from "@/state/useDateSettings";
 import { useSettingsStore } from "@/state/settingsStore";
 
 interface AppFrameProps {
@@ -21,6 +21,7 @@ interface AppFrameProps {
 export function AppFrame({ children, progress = 0 }: AppFrameProps) {
   const pct = Math.min(100, Math.max(0, progress));
   const petName = useSettingsStore((s) => s.petName);
+  const date = useToday();
 
   return (
     <>
@@ -31,7 +32,7 @@ export function AppFrame({ children, progress = 0 }: AppFrameProps) {
         <div className="mx-auto w-full max-w-[1200px] px-6 md:px-10 py-8 pb-28 md:pb-10">
           <div className="mb-4 flex items-center justify-between gap-4">
             <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]">
-              {today()}
+              {date}
             </p>
             <div className="flex items-center gap-2 rounded-full border px-3 py-1 [border-color:rgb(var(--hairline)/0.08)]">
               <span

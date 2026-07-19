@@ -10,7 +10,8 @@ const COLUMNS = [
   {
     n: "03",
     title: "Gamified, never manipulative",
-    detail: "Nix only dims — no loss-aversion traps; streak-repair exists.",
+    detail:
+      "Momentum, grace days, and earned freezes reward consistency without turning one miss into a threat.",
   },
   {
     n: "04",

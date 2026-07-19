@@ -1,4 +1,14 @@
-@import "tailwindcss";
+/*
+ * source("../") scopes Tailwind's automatic content detection to src/ instead
+ * of the repo root. Without it Tailwind scans every non-ignored file, markdown
+ * included, and treats prose as class candidates: docs/superpowers/plans/
+ * 2026-07-14-streaks-habits-quotes.md documents the styling convention as
+ * `font-[family-name:var(--font-*)]`, and that literal wildcard generated
+ * `font-family: var(--font-*)` — invalid CSS that failed the parse of this
+ * whole stylesheet and 500'd every route via layout.tsx. Every real class
+ * lives under src/; only tests sit outside it and they need no generated CSS.
+ */
+@import "tailwindcss" source("../");
 
 /*
  * Nitor design tokens — MATTE system.
@@ -20,10 +30,11 @@
   --surface-2: 23 23 26; /* #17171A hover/elevated */
   --text: 237 237 239; /* #EDEDEF */
   --text-dim: 161 161 166; /* #A1A1A6 */
-  --text-mute: 110 110 118; /* #6E6E76 */
+  --text-mute: 130 130 138; /* #82828A, AA on dark elevated surfaces */
   --hairline: 255 255 255; /* used as rgb(var(--hairline) / 0.08) */
   --accent: 245 176 39; /* #F5B027 signature amber */
   --accent-glow: 255 194 75; /* #FFC24B */
+  --accent-contrast: 10 10 11; /* legible foreground on amber fills */
 
   /* Motion */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -38,10 +49,11 @@
   --surface-2: 23 23 26;
   --text: 237 237 239;
   --text-dim: 161 161 166;
-  --text-mute: 110 110 118;
+  --text-mute: 130 130 138;
   --hairline: 255 255 255;
   --accent: 245 176 39;
   --accent-glow: 255 194 75;
+  --accent-contrast: 10 10 11;
 }
 
 [data-theme="light"] {
@@ -50,10 +62,11 @@
   --surface-2: 255 255 255; /* only for tiny inset accents, avoid large pure-white */
   --text: 23 23 26;
   --text-dim: 90 90 96;
-  --text-mute: 130 130 138;
+  --text-mute: 105 105 112; /* #696970, AA on warm-paper surfaces */
   --hairline: 16 16 20; /* rgb(var(--hairline) / 0.10) on light */
-  --accent: 201 132 8; /* #C98408 deepened for contrast */
-  --accent-glow: 217 147 10;
+  --accent: 154 96 5; /* #9A6005, AA as text on warm paper */
+  --accent-glow: 145 88 0; /* darker hover remains AA */
+  --accent-contrast: 255 255 255;
 }
 
 html,

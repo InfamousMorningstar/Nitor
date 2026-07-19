@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { Habit, HabitType, Schedule, ScheduleKind } from "@/domain/types";
+import type { Habit, HabitType, Schedule, ScheduleKind, Strictness } from "@/domain/types";
 import { today } from "@/domain/dates";
 import { EmojiPicker } from "@/components/ui/EmojiPicker";
 import { ColorPicker } from "@/components/ui/ColorPicker";
@@ -30,6 +30,11 @@ const SCHEDULE_OPTIONS: { kind: ScheduleKind; label: string }[] = [
 ];
 
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const STRICTNESS_OPTIONS: { value: Strictness; label: string }[] = [
+  { value: "strict", label: "Strict" },
+  { value: "balanced", label: "Balanced" },
+  { value: "flexible", label: "Flexible" },
+];
 
 export interface HabitFormInitial {
   name?: string;
@@ -39,6 +44,14 @@ export interface HabitFormInitial {
   targetValue?: number;
   unit?: string;
   schedule?: Schedule;
+  category?: string;
+  strictness?: Strictness;
+  graceDaysPerWeek?: number;
+}
+
+function normalizeGraceDays(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(7, Math.max(0, Math.trunc(value)));
 }
 
 function newHabitId(): string {
@@ -61,6 +74,11 @@ export function HabitForm({
   const [type, setType] = useState<HabitType>(initial?.type ?? "boolean");
   const [target, setTarget] = useState(initial?.targetValue ?? 1);
   const [unit, setUnit] = useState(initial?.unit ?? "");
+  const [category, setCategory] = useState(initial?.category ?? "Personal");
+  const [strictness, setStrictness] = useState<Strictness>(initial?.strictness ?? "balanced");
+  const [graceDaysPerWeek, setGraceDaysPerWeek] = useState(
+    normalizeGraceDays(initial?.graceDaysPerWeek ?? 1),
+  );
 
   const [scheduleKind, setScheduleKind] = useState<ScheduleKind>(initial?.schedule?.kind ?? "daily");
   const [weekdays, setWeekdays] = useState<number[]>(initial?.schedule?.weekdays ?? [1, 2, 3, 4, 5]);
@@ -99,12 +117,12 @@ export function HabitForm({
       name: name.trim() || "New habit",
       emoji,
       color,
-      category: "Personal",
+      category: category.trim() || "Personal",
       type,
       targetValue: needsTarget ? target : null,
       schedule: buildSchedule(),
-      strictness: "balanced",
-      graceDaysPerWeek: 1,
+      strictness,
+      graceDaysPerWeek: normalizeGraceDays(graceDaysPerWeek),
       archived: false,
       createdAt: today(),
       ...(type === "quantified" && unit.trim() ? { unit: unit.trim() } : {}),
@@ -125,7 +143,19 @@ export function HabitForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Read before bed"
-          autoFocus
+          className={fieldInput}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="habit-category" className={`${eyebrow} mb-2 block`}>
+          Category
+        </label>
+        <input
+          id="habit-category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="e.g. Growth"
           className={fieldInput}
         />
       </div>
@@ -197,6 +227,46 @@ export function HabitForm({
         </div>
       )}
 
+      <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
+        <div>
+          <p className={`${eyebrow} mb-2`}>Strictness</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Strictness">
+            {STRICTNESS_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={strictness === value}
+                onClick={() => setStrictness(value)}
+                className={
+                  "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-[var(--dur-micro)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] " +
+                  (strictness === value
+                    ? "border-[rgb(var(--accent))] [color:rgb(var(--accent))]"
+                    : "[border-color:rgb(var(--hairline)/0.12)] [color:rgb(var(--text-dim))] hover:[border-color:rgb(var(--hairline)/0.24)]")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="habit-grace-days-per-week" className={`${eyebrow} mb-2 block`}>
+            Grace days per week
+          </label>
+          <input
+            id="habit-grace-days-per-week"
+            type="number"
+            min={0}
+            max={7}
+            step={1}
+            value={graceDaysPerWeek}
+            onChange={(e) => setGraceDaysPerWeek(normalizeGraceDays(Number(e.target.value)))}
+            className={`${fieldInput} ${mono}`}
+          />
+        </div>
+      </div>
+
       <div>
         <p className={`${eyebrow} mb-2`}>Schedule</p>
         <div className="flex flex-wrap gap-2">
@@ -232,7 +302,7 @@ export function HabitForm({
                   className={
                     `${mono} grid h-8 w-8 shrink-0 place-items-center rounded-full border text-xs font-medium transition-colors duration-[var(--dur-micro)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] ` +
                     (on
-                      ? "border-transparent [background:rgb(var(--accent))] [color:rgb(var(--bg))]"
+                      ? "border-transparent [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))]"
                       : "[border-color:rgb(var(--hairline)/0.16)] [color:rgb(var(--text-dim))]")
                   }
                 >
@@ -302,7 +372,7 @@ export function HabitForm({
       */}
       <button
         type="submit"
-        className="w-full rounded-lg py-3 text-sm font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.99] [background:rgb(var(--accent))] [color:rgb(var(--bg))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
+        className="w-full rounded-lg py-3 text-sm font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.99] [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
       >
         {submitLabel}
       </button>

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Habit, Log, Schedule } from "@/domain/types";
 import { computeStreak, isComplete } from "@/domain/streaks";
-import { today } from "@/domain/dates";
+import { useToday, useStreakOptions } from "@/state/useDateSettings";
 import { usePetStore } from "@/state/petStore";
 
 const mono = "font-[family-name:var(--font-mono)] [font-variant-numeric:tabular-nums]";
@@ -45,6 +45,7 @@ interface HabitRowProps {
 
 export function HabitRow({ habit, logs, onLog }: HabitRowProps) {
   const feed = usePetStore((s) => s.feed);
+  const streakOptions = useStreakOptions();
   const [celebrating, setCelebrating] = useState(false);
   const celebrateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -52,8 +53,9 @@ export function HabitRow({ habit, logs, onLog }: HabitRowProps) {
     if (celebrateTimer.current) clearTimeout(celebrateTimer.current);
   }, []);
 
-  const streak = computeStreak(habit, logs, today());
-  const todayLog = logs.find((l) => l.date === today());
+  const date = useToday();
+  const streak = computeStreak(habit, logs, date, streakOptions);
+  const todayLog = logs.find((l) => l.date === date);
   const done = isComplete(habit, todayLog);
   const count = typeof todayLog?.value === "number" ? todayLog.value : 0;
   const target = habit.targetValue ?? 1;

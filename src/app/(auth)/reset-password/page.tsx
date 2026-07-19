@@ -1,44 +1,58 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { FieldError } from "@/components/auth/FieldError";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
+import { createClient } from "@/lib/supabase/client";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, passwordError } from "@/components/auth/formKit";
+import {
+  RESET_LINK_EXPIRED_MESSAGE,
+  updatePasswordErrorMessage,
+} from "@/components/auth/errorCopy";
 
 export default function ResetPasswordPage() {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [done, setDone] = useState(false);
+  const [serverError, setServerError] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
 
   const passwordErr = submitted ? passwordError(password) : undefined;
   const confirmErr =
     submitted && !passwordErr && password !== confirmPassword ? "Passwords don't match." : undefined;
 
-  function handleSubmit(e: React.FormEvent) {
+  // No Turnstile here: the user arrives with a valid recovery session (via
+  // /auth/confirm) and updateUser is not a CAPTCHA-protected endpoint.
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
+    setServerError(undefined);
+    // Setting a password (unlike login's check of an existing one) must
+    // enforce the full 12-char policy client-side first (S10/V6).
     if (passwordError(password) || password !== confirmPassword) return;
-    // Stubbed — no real password update, no token handling.
-    setDone(true);
-  }
 
-  if (done) {
-    return (
-      <AuthShell>
-        <p className={eyebrow}>Reset password</p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight [color:rgb(var(--text))]">
-          Password updated
-        </h1>
-        <p className="mt-3 text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
-          Your password has been changed. You can sign in with it now.
-        </p>
-        <Link href="/login" className={`${accentLink} mt-6 inline-block`}>
-          &larr; Back to sign in
-        </Link>
-      </AuthShell>
-    );
+    setBusy(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        // Mapped to Nitor's own copy — the raw message for the common
+        // expired-link case is the developer-facing "Auth session missing!".
+        setServerError(updatePasswordErrorMessage(error));
+        return;
+      }
+      // The recovery session is a real signed-in session — land in the app.
+      router.push("/today");
+    } catch {
+      // updateUser returns { error } for AuthErrors; a throw is a non-auth
+      // (network-layer) failure.
+      setServerError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -85,8 +99,15 @@ export default function ResetPasswordPage() {
           <FieldError message={confirmErr} />
         </div>
 
-        <button type="submit" className={primaryButton}>
-          Update password
+        <FieldError message={serverError} />
+        {serverError === RESET_LINK_EXPIRED_MESSAGE && (
+          <Link href="/forgot-password" className={accentLink}>
+            Request a new reset link
+          </Link>
+        )}
+
+        <button type="submit" className={primaryButton} disabled={busy}>
+          {busy ? "Updating…" : "Update password"}
         </button>
       </form>
 

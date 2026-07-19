@@ -1,29 +1,96 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { FieldError } from "@/components/auth/FieldError";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
+import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
+import { createClient } from "@/lib/supabase/client";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, emailError, passwordError } from "@/components/auth/formKit";
+import { signUpErrorMessage } from "@/components/auth/errorCopy";
 import { BETA_SIGNUP_NOTICE } from "@/content/beta";
 
 export default function SignupPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | undefined>();
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const turnstile = useRef<TurnstileHandle>(null);
 
   const emailErr = submitted ? emailError(email) : undefined;
   const passwordErr = submitted ? passwordError(password) : undefined;
 
-  function handleSubmit(e: React.FormEvent) {
+  // Turnstile's onError means the challenge can never be solved (script blocked
+  // by an ad blocker or the network), which a null token cannot express. Without
+  // surfacing it the user sees a form that rejects every submit and no visible
+  // challenge. Must be a STABLE reference: pass a useCallback (or a plain state
+  // setter), never an inline arrow.
+  const handleCaptchaUnavailable = useCallback(() => {
+    setServerError(
+      "Verification could not load. Disable your ad blocker or try another network.",
+    );
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
+    setServerError(undefined);
     if (emailError(email) || passwordError(password)) return;
-    // Stubbed — no real account is created, just route into onboarding.
-    router.push("/onboarding");
+    if (!captchaToken) {
+      setServerError("Please complete the challenge.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          captchaToken,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/onboarding`,
+        },
+      });
+
+      if (error) {
+        // Mapped to Nitor's own copy — a raw error.message here would leak
+        // "User already registered" if email confirmation were ever disabled.
+        setServerError(signUpErrorMessage(error));
+        return;
+      }
+      setSent(true);
+    } catch {
+      // signUp returns { error } for every AuthError; a throw here is a non-auth
+      // failure (network layer), so keep the message generic.
+      setServerError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+      // The token is spent whether or not the call succeeded (S11).
+      turnstile.current?.reset();
+    }
+  }
+
+  if (sent) {
+    return (
+      <AuthShell>
+        <p className={eyebrow}>Almost there</p>
+        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight [color:rgb(var(--text))]">
+          Check your email
+        </h1>
+        <p className="mt-3 text-[15px] leading-relaxed [color:rgb(var(--text-dim))]">
+          A confirmation link was sent to{" "}
+          <span className="[color:rgb(var(--text))]">{email}</span>. Open it to
+          finish setting up your account.
+        </p>
+        <Link href="/login" className={`${accentLink} mt-6 inline-block`}>
+          &larr; Back to sign in
+        </Link>
+      </AuthShell>
+    );
   }
 
   return (
@@ -33,17 +100,7 @@ export default function SignupPage() {
         Create an account
       </h1>
 
-      <div className="mt-8">
-        <OAuthButtons redirectTo="/onboarding" />
-      </div>
-
-      <div className="my-6 flex items-center gap-3" aria-hidden="true">
-        <div className="h-px flex-1 [background:rgb(var(--hairline)/0.1)]" />
-        <span className={eyebrow}>or</span>
-        <div className="h-px flex-1 [background:rgb(var(--hairline)/0.1)]" />
-      </div>
-
-      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+      <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
         <div>
           <label htmlFor="signup-email" className={`${eyebrow} mb-2 block`}>
             Email
@@ -79,8 +136,15 @@ export default function SignupPage() {
           {password.length > 0 && !passwordErr && <PasswordStrengthBar password={password} />}
         </div>
 
-        <button type="submit" className={primaryButton}>
-          Create account
+        <Turnstile
+          ref={turnstile}
+          onToken={setCaptchaToken}
+          onError={handleCaptchaUnavailable}
+        />
+        <FieldError message={serverError} />
+
+        <button type="submit" className={primaryButton} disabled={busy}>
+          {busy ? "Creating…" : "Create account"}
         </button>
 
         <p className="text-center text-xs leading-relaxed [color:rgb(var(--text-mute))]">
