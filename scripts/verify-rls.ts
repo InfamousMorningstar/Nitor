@@ -264,6 +264,90 @@ async function main(): Promise<void> {
     assert(r.status === 201, `A insert boolean log: ${r.status} ${JSON.stringify(r.body)}`);
     ok("A inserts a numeric log and a boolean log");
 
+    // ------------------------------------------------------ CHECK constraints
+    // Each rejection is paired with the same authenticated PATCH shape carrying
+    // a valid domain value. That prevents a broken route, grant, filter, or JWT
+    // from masquerading as successful constraint enforcement.
+    r = await rest(`/habits?id=eq.${aHabitId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ name: "x".repeat(201) }),
+    });
+    assert(
+      r.status === 400,
+      `over-long habit name is rejected (expected 400, got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    r = await rest(`/habits?id=eq.${aHabitId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ name: "Read" }),
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 1,
+      `control: valid habit name still writes (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    ok("habit names are bounded while valid names still write");
+
+    r = await rest(`/habits?id=eq.${aHabitId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ grace_days_per_week: -1 }),
+    });
+    assert(
+      r.status === 400,
+      `negative grace_days_per_week is rejected (expected 400, got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    r = await rest(`/habits?id=eq.${aHabitId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ grace_days_per_week: 1 }),
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 1,
+      `control: in-range grace_days_per_week still writes (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    ok("grace days stay in 0..7 while in-range values still write");
+
+    r = await rest(`/logs?id=eq.${aLogId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ date: "banana" }),
+    });
+    assert(
+      r.status === 400,
+      `malformed log date is rejected (expected 400, got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    r = await rest(`/logs?id=eq.${aLogId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ date: "2026-07-02" }),
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 1,
+      `control: YYYY-MM-DD log date still writes (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    ok("log dates require YYYY-MM-DD while valid dates still write");
+
+    r = await rest(`/logs?id=eq.${aLogId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ value: { arbitrary: "object" } }),
+    });
+    assert(
+      r.status === 400,
+      `object-valued log is rejected (expected 400, got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    r = await rest(`/logs?id=eq.${aLogId}`, {
+      method: "PATCH",
+      headers: { ...userHeaders(aJwt), Prefer: "return=representation" },
+      body: JSON.stringify({ value: 42 }),
+    });
+    assert(
+      r.status === 200 && rows(r.body).length === 1,
+      `control: numeric log value still writes (got ${r.status} ${JSON.stringify(r.body)})`,
+    );
+    ok("log values accept domain scalars and reject JSON objects");
+
     // ------------------------------------------------------------- B writes own
     // The positive control: B owns real rows, so "B sees zero of A's" cannot
     // pass merely because B's query returned nothing.

@@ -217,4 +217,55 @@ describe("supabase/habits.sql — log ownership is structural", () => {
       /create policy "logs_insert_own" on public\.logs for insert to authenticated with check \(\(select auth\.uid\(\)\) = user_id\)/i,
     );
   });
+
+  describe("public Data API writes are bounded by CHECK constraints", () => {
+    const expectedChecks = [
+      "habits_name_check",
+      "habits_emoji_check",
+      "habits_color_check",
+      "habits_category_check",
+      "habits_unit_check",
+      "habits_grace_days_per_week_check",
+      "habits_target_value_check",
+      "habits_created_at_check",
+      "habits_start_date_check",
+      "habits_sort_order_check",
+      "logs_date_check",
+      "logs_note_check",
+      "logs_created_at_check",
+      "logs_value_type_check",
+    ];
+
+    it.each(expectedChecks)("adds and validates %s idempotently", (constraint) => {
+      expect(flat).toMatch(
+        new RegExp(`conname = '${constraint}'.*?add constraint ${constraint} check .*?not valid`, "i"),
+      );
+      expect(flat).toMatch(
+        new RegExp(`validate constraint ${constraint}`, "i"),
+      );
+    });
+
+    it("allows only the number and boolean JSON value types the domain declares", () => {
+      expect(flat).toMatch(
+        /constraint logs_value_type_check check \(jsonb_typeof\(value\) in \('number', 'boolean'\)\) not valid/i,
+      );
+    });
+
+    it("uses separate date-only and ISO timestamp contracts", () => {
+      expect(flat).toMatch(
+        /constraint habits_created_at_check check \(created_at ~ '\^\[0-9\]\{4\}-\[0-9\]\{2\}-\[0-9\]\{2\}\$'\) not valid/i,
+      );
+      expect(flat).toMatch(
+        /constraint logs_created_at_check check \(\s*created_at ~ '\^\[0-9\]\{4\}-\[0-9\]\{2\}-\[0-9\]\{2\}T/i,
+      );
+    });
+
+    it("documents and performs legacy-row repair before validation", () => {
+      expect(flat).toMatch(/POLICY FOR LEGACY OUT-OF-BOUNDS ROWS/i);
+      const repair = flat.search(/POLICY FOR LEGACY OUT-OF-BOUNDS ROWS/i);
+      const firstValidation = flat.search(/validate constraint habits_name_check/i);
+      expect(repair).toBeGreaterThan(-1);
+      expect(firstValidation).toBeGreaterThan(repair);
+    });
+  });
 });

@@ -218,6 +218,228 @@ begin
   alter table public.logs validate constraint logs_user_id_habit_id_fkey;
 end $$;
 
+-- Public Data API clients can bypass the React/domain layer, so every scalar
+-- the domain consumes is bounded here too. The limits are deliberately roomy:
+-- they prevent abusive payloads and nonsensical arithmetic without narrowing
+-- anything the application legitimately creates. Habit.createdAt/startDate and
+-- Log.date are YYYY-MM-DD; Log.createdAt is the ISO string produced by
+-- new Date().toISOString(). Log.value is exactly number | boolean.
+--
+-- Each constraint is catalog-conditional and starts NOT VALID. PostgreSQL
+-- enforces a NOT VALID CHECK for new/changed rows immediately, while allowing
+-- the migration to repair legacy rows before the final validation scan.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_name_check'
+  ) then
+    alter table public.habits add constraint habits_name_check
+      check (char_length(btrim(name)) between 1 and 200) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_emoji_check'
+  ) then
+    alter table public.habits add constraint habits_emoji_check
+      check (char_length(emoji) between 1 and 16) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_color_check'
+  ) then
+    alter table public.habits add constraint habits_color_check
+      check (char_length(btrim(color)) between 1 and 64) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_category_check'
+  ) then
+    alter table public.habits add constraint habits_category_check
+      check (char_length(btrim(category)) between 1 and 80) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_unit_check'
+  ) then
+    alter table public.habits add constraint habits_unit_check
+      check (unit is null or char_length(btrim(unit)) between 1 and 40) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_grace_days_per_week_check'
+  ) then
+    alter table public.habits add constraint habits_grace_days_per_week_check
+      check (grace_days_per_week between 0 and 7) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_target_value_check'
+  ) then
+    alter table public.habits add constraint habits_target_value_check
+      check (
+        target_value is null
+        or (target_value >= 0 and target_value <> 'NaN'::numeric)
+      ) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_created_at_check'
+  ) then
+    alter table public.habits add constraint habits_created_at_check
+      check (created_at ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_start_date_check'
+  ) then
+    alter table public.habits add constraint habits_start_date_check
+      check (start_date is null or start_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.habits'::regclass
+      and conname = 'habits_sort_order_check'
+  ) then
+    alter table public.habits add constraint habits_sort_order_check
+      check (sort_order is null or sort_order >= 0) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.logs'::regclass
+      and conname = 'logs_date_check'
+  ) then
+    alter table public.logs add constraint logs_date_check
+      check (date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.logs'::regclass
+      and conname = 'logs_note_check'
+  ) then
+    alter table public.logs add constraint logs_note_check
+      check (note is null or char_length(note) <= 1000) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.logs'::regclass
+      and conname = 'logs_created_at_check'
+  ) then
+    alter table public.logs add constraint logs_created_at_check
+      check (
+        created_at ~
+          '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+      ) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.logs'::regclass
+      and conname = 'logs_value_type_check'
+  ) then
+    alter table public.logs add constraint logs_value_type_check
+      check (jsonb_typeof(value) in ('number', 'boolean')) not valid;
+  end if;
+end $$;
+
+-- POLICY FOR LEGACY OUT-OF-BOUNDS ROWS:
+--
+-- Preserve rows when their meaning is recoverable: trim and truncate display
+-- strings, replace blank required labels with application defaults, clamp
+-- numeric bounds, and truncate notes. Delete only rows whose chronology or
+-- value meaning cannot be recovered honestly. A malformed habit date makes its
+-- scheduling origin unknowable, so that habit (and its cascading logs) is
+-- removed. A malformed log date/timestamp or object/array/null value cannot be
+-- mapped truthfully to the domain's number | boolean completion, so that log is
+-- removed. The live tables are empty today; this policy also makes upgrades
+-- deterministic if legacy rows appear before the migration is applied.
+delete from public.logs
+where date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+   or created_at !~
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+   or jsonb_typeof(value) not in ('number', 'boolean');
+
+delete from public.habits
+where created_at !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+   or (start_date is not null and start_date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+update public.habits
+set
+  name = case
+    when btrim(name) = '' then 'Untitled habit'
+    else left(btrim(name), 200)
+  end,
+  emoji = case when emoji = '' then '•' else left(emoji, 16) end,
+  color = case
+    when btrim(color) = '' then '#7C5CFF'
+    else left(btrim(color), 64)
+  end,
+  category = case
+    when btrim(category) = '' then 'Personal'
+    else left(btrim(category), 80)
+  end,
+  unit = case
+    when unit is null or btrim(unit) = '' then null
+    else left(btrim(unit), 40)
+  end,
+  grace_days_per_week = least(7, greatest(0, grace_days_per_week)),
+  target_value = case
+    when target_value = 'NaN'::numeric or target_value < 0 then 0
+    else target_value
+  end,
+  sort_order = case
+    when sort_order is null then null
+    else greatest(0, sort_order)
+  end
+where char_length(btrim(name)) not between 1 and 200
+   or char_length(emoji) not between 1 and 16
+   or char_length(btrim(color)) not between 1 and 64
+   or char_length(btrim(category)) not between 1 and 80
+   or (unit is not null and char_length(btrim(unit)) not between 1 and 40)
+   or grace_days_per_week not between 0 and 7
+   or (target_value is not null and (target_value < 0 or target_value = 'NaN'::numeric))
+   or (sort_order is not null and sort_order < 0);
+
+update public.logs
+set note = left(note, 1000)
+where note is not null and char_length(note) > 1000;
+
+alter table public.habits validate constraint habits_name_check;
+alter table public.habits validate constraint habits_emoji_check;
+alter table public.habits validate constraint habits_color_check;
+alter table public.habits validate constraint habits_category_check;
+alter table public.habits validate constraint habits_unit_check;
+alter table public.habits validate constraint habits_grace_days_per_week_check;
+alter table public.habits validate constraint habits_target_value_check;
+alter table public.habits validate constraint habits_created_at_check;
+alter table public.habits validate constraint habits_start_date_check;
+alter table public.habits validate constraint habits_sort_order_check;
+alter table public.logs validate constraint logs_date_check;
+alter table public.logs validate constraint logs_note_check;
+alter table public.logs validate constraint logs_created_at_check;
+alter table public.logs validate constraint logs_value_type_check;
+
 -- Also serves the composite FK's lookup side.
 create index if not exists logs_user_habit_idx on public.logs (user_id, habit_id);
 create index if not exists logs_user_date_idx on public.logs (user_id, date);
