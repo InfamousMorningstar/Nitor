@@ -23,9 +23,19 @@ interface Entry {
 
 const ENTRIES: Entry[] = [
   {
+    date: "20 Jul 2026",
+    title: "Nitor goes live",
+    body: "The first public deployment. Password changes are real and require your current password before anything happens, because a session here is a long-lived cookie and a borrowed browser should not be enough to take an account over. Changing your email address is not available yet, and the field says so plainly rather than pretending. First sign-ins now always reach onboarding — signing in with a password used to skip it.",
+  },
+  {
+    date: "19 Jul 2026",
+    title: "Deletion that deletes, and bounded writes",
+    body: "Account deletion is real and irreversible, and reports success only after confirming the account is actually gone. Every value the public data API can write is now bounded by the database itself rather than by the app in front of it, and habit and log ownership is enforced by the shape of the schema instead of by application checks. Settings that previously did nothing now do what they say.",
+  },
+  {
     date: "18 Jul 2026",
     title: "Per-user persistence groundwork",
-    body: "Habits and logs tables with row-level security policies that scope every read and write to the owning account, plus a Supabase-backed repository behind the existing storage seam and its contract tests. In progress on the active branch — not yet the default store for every account.",
+    body: "Habits and logs tables with row-level security policies that scope every read and write to the owning account, plus a Supabase-backed repository behind the existing storage seam and its contract tests. Merged and live since 20 Jul, verified against the running database rather than only against mocks.",
   },
   {
     date: "17 Jul 2026",

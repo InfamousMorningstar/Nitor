@@ -7,6 +7,7 @@ import { FieldError } from "@/components/auth/FieldError";
 import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
 import { createClient } from "@/lib/supabase/client";
 import { safeNext } from "@/lib/auth/redirect";
+import { postAuthDestination } from "@/lib/auth/onboarding";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, emailError, requiredError } from "@/components/auth/formKit";
 import { authLinkErrorMessage } from "@/components/auth/errorCopy";
 
@@ -65,8 +66,19 @@ function LoginForm() {
         return;
       }
 
-      // safeNext rejects attacker-supplied absolute/protocol-relative targets (S9).
-      router.push(safeNext(searchParams.get("next")));
+      // safeNext rejects attacker-supplied absolute/protocol-relative targets (S9),
+      // and postAuthDestination decides whether this user has earned that
+      // destination yet. Password login used to push straight to `next`, which
+      // meant it was the ONE authenticated entry point that skipped the
+      // onboarding gate — a first-time user landed on an empty /today instead of
+      // onboarding. That is also the only path a beta tester can use while
+      // transactional email cannot reach them, so it was the common case, not
+      // the edge case. Gate at every point authentication succeeds, not most.
+      const destination = await postAuthDestination(
+        supabase,
+        safeNext(searchParams.get("next")),
+      );
+      router.push(destination);
       router.refresh();
     } catch {
       // signInWithPassword returns { error } for every AuthError; a throw here is
