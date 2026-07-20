@@ -32,6 +32,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/reset-password`);
   }
 
+  // Email changes belong to account settings, but completing one must not
+  // bypass the same onboarding gate as every other authenticated destination.
+  if (type === "email_change") {
+    const destination = await postAuthDestination(
+      supabase,
+      "/settings?email_change=confirmed",
+    );
+    return NextResponse.redirect(`${origin}${destination}`);
+  }
+
   // Everything else is a confirmation that may be this user's first sign-in.
   const destination = await postAuthDestination(supabase, next);
   return NextResponse.redirect(`${origin}${destination}`);

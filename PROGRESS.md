@@ -7,11 +7,11 @@ the frozen `HabitRepository` seam.
 **Branch:** `main` is the baseline. Active work is on `feat/phase2-identity` (pushed, not merged).
 **Status:** Phase 2 is underway. Identity/session is 16/19 tasks in; the Slice 2 persistence
 implementation is integrated behind RLS, with habit and log ownership enforced structurally
-(tenant-qualified keys plus a composite foreign key) rather than by application code. **409 tests
-pass across 45 files**; TypeScript is clean and the production build is clean at **25 static
+(tenant-qualified keys plus a composite foreign key) rather than by application code. **416 tests
+pass across 46 files**; TypeScript is clean and the production build is clean at **25 static
 pages** (was 24 before `/api/account` was added) and still prints `ƒ Proxy (Middleware)`.
 
-_Last updated: 2026-07-19._
+_Last updated: 2026-07-20._
 
 ---
 
@@ -19,32 +19,30 @@ _Last updated: 2026-07-19._
 
 Everything below is committed and pushed. Pick up at step 1.
 
-**1. Apply the pending migration to the live database — this is the only blocking item.**
-`supabase/habits.sql` gained CHECK constraints (commit `ddba6fd`) that are **committed but NOT yet
-applied to the live Supabase project**, and the live verifier has **not** been run against them.
-Both steps were blocked by the sandbox permission classifier during the session that wrote them.
+**1. ✅ DONE (2026-07-20) — migration applied and verified against the live database.**
+`supabase/habits.sql` (tenancy fix + CHECK constraints, commit `ddba6fd`) is applied to the live
+Supabase project, and `scripts/verify-rls.ts` reports **VERIFY-RLS: PASS, 27/27 checks** against
+it — including cross-tenant isolation in both directions, the composite-FK rejection of foreign
+habit ids, no existence oracle, no ghost logs, and the anon role reading zero rows.
 
-Before applying, run the read-only preflight — `habits.sql` contains a top-level
-`delete from public.habits where created_at !~ …` that **cascades into logs**. The file's comment
-claims the live tables are empty; that claim has never been checked against the real database.
+Re-run any time (the SQL file is written to be re-runnable):
 
 ```bash
 npx tsx --env-file=.env.local scripts/verify-rls.ts    # expect PASS, 27 checks
 ```
 
-Apply `supabase/habits.sql` via the Supabase SQL editor (it is written to be re-runnable), then
-re-run the verifier.
-
-**2. Task 2 — email & password change.** Not started. Settings still shows a hardcoded
-`you@example.com` and two read-only placeholders. Notes already gathered:
-- `supabase.auth.updateUser({ email })` sends a confirmation whose link arrives at
-  `src/app/auth/confirm/route.ts`. That route currently special-cases only `recovery` and sweeps
-  **everything else** through the onboarding gate — `email_change` needs its own destination, plus
-  route tests. Check how Supabase's "secure email change" (confirm *both* addresses) behaves first.
-- Reuse the existing password-strength helpers under `src/app/(auth)/`; do not write a second
-  ruleset that can drift.
-- **Recommendation on record:** require the current password before a password change. Sessions are
-  long-lived cookies, so without it a borrowed logged-in browser is a silent full account takeover.
+**2. Task 2 — email & password change. BLOCKED on dashboard template.** The controls and route
+are implemented in the working tree, but the email flow is not complete until the Task 18 custom
+email-change template below is installed. Supabase's default `{{ .ConfirmationURL }}` verifies at
+Auth first and redirects to `emailRedirectTo` without `token_hash` or `type`; the current route
+correctly rejects that bare redirect rather than assuming success.
+- Settings previously showed a hardcoded `you@example.com` and two read-only placeholders.
+- `supabase.auth.updateUser({ email })` sends a confirmation whose custom link must arrive at
+  `src/app/auth/confirm/route.ts` with `token_hash` and `type=email_change`.
+- The `email_change` route uses the existing onboarding gate: completed users return to Settings;
+  incomplete users go to onboarding.
+- Password change reuses the shared strength helpers and requires the current password. Its
+  `signInWithPassword` verification re-issues the session and consumes sign-in rate limit.
 
 **3. Task 3 — complete the data export.** Not started. `exportJson()` / `exportCsv()` in
 `src/app/settings/page.tsx` already work. Remaining: fetch a fresh complete copy rather than
@@ -86,8 +84,8 @@ database access in step 1 is working.
   **streak-risk** alert, **habit-stacking** suggestion, shareable **monthly recap** (wordmark).
 - **Pet** — `/pet` is back to an honest **Coming soon** state while the full Nix companion is
   deferred to a future phase.
-- **Settings** — grouped + searchable: account (**real, irreversible account deletion**; email and
-  password still placeholders), appearance (theme / 5 accents / density /
+- **Settings** — grouped + searchable: account (**real, irreversible account deletion**; **password
+  change** requiring the current password; email read-only pending its template), appearance (theme / 5 accents / density /
   reduce-motion), habits & streaks (week-start, day-rollover, streak-freeze toggle, vacation mode),
   notifications (stub prefs), quotes (traditions), pet (rename), data (**export JSON + CSV**).
 - **Auth** — login / signup (password-strength bar) / forgot-password, split layout with Nix + a
@@ -182,22 +180,63 @@ to 0 rows after cleanup.
    URI `<supabase-url>/auth/v1/callback`). Re-check with that settings endpoint; the flag flipping
    to `true` is the green light. `/auth/callback` already does the PKCE exchange, already routes
    through `safeNext`, and already passes its output to the redirect verbatim.
-2. **Task 18 — dashboard config.** SMTP half is **blocked until a domain is registered** (DNS
-   verification). Until then the built-in SMTP sends a few emails/hour: fine for dev, not shippable.
+2. **Task 18 — dashboard config.**
+   - SMTP is **blocked until a domain is registered** (DNS verification). Until then the built-in
+     SMTP sends a few emails/hour: fine for dev, not shippable.
+   - Email change is **BLOCKED until this exact custom Auth → Email Templates → Change email
+     address template is installed**. The default `{{ .ConfirmationURL }}` verifies inside
+     Supabase and redirects without the evidence required by `/auth/confirm`.
+
+     **Subject**
+
+     ```text
+     Confirm your Nitor email change
+     ```
+
+     **HTML**
+
+     ```html
+     <h2>Confirm your email change</h2>
+     <p>Confirm the requested change to {{ .NewEmail }}.</p>
+     <p>
+       <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email_change">
+         Confirm email change
+       </a>
+     </p>
+     <p>If you did not request this change, you can safely ignore this email.</p>
+     ```
+
+     `updateUser` passes `/auth/confirm` as `emailRedirectTo`, so `{{ .RedirectTo }}` expands to
+     the environment-correct `/auth/confirm` URL. Do not replace this with a bare-redirect fallback:
+     without `token_hash` and `type`, the application has no positive evidence of confirmation.
 3. **Task 19** — finish the remaining live/runtime gates: negative RLS, quote top-up,
    authenticated redirects, and end-to-end browser flow.
 
 ## ⬜ Left to do
 
 1. **Apply the pending CHECK-constraint migration and re-run the live verifier** — see RESUME HERE.
-2. **Email & password change**, then **complete the data export** — see RESUME HERE.
+2. **Complete the data export** — see RESUME HERE. (Password change shipped; **email change is
+   deferred to the roadmap** — see below.)
 3. **Finish identity/runtime gates** — production SMTP after domain registration; live cross-user
    RLS, quote top-up, authenticated redirects, and full signed-in browser flow. (Google OAuth is
    *not* on this list: the live project reports `external.google: false` and its absence is
    deliberate.)
 4. **Phase 2 slices 3–5**, each needing its own brainstorm → spec → plan: settings sync,
    notifications delivery, and import-merge.
-5. **Full Nix companion** — future roadmap work covering pet persistence, feed/evolution,
+5. **Email change — deferred to roadmap, blocked on a domain.** The `type === "email_change"`
+   branch in `src/app/auth/confirm/route.ts` is written and tested, but **nothing routes to it**:
+   Supabase's default "Change Email Address" template uses `{{ .ConfirmationURL }}`, which verifies
+   server-side and redirects carrying **no `token_hash` and no `type`** — so the route's first guard
+   sends the user to `/login?error=invalid_link` *after the change already succeeded*. A success
+   that reports itself as a failure is worse than an honest placeholder, so **the Settings email
+   field is read-only** and `EmailChangeControl` is intentionally left unimported — built and
+   tested, but not offered. Unblocking it needs (a) a domain + custom SMTP,
+   and (b) a custom template pointing at
+   `/auth/confirm?token_hash={{ .TokenHash }}&type=email_change` — same dependency as Task 18.
+   Also open when it resumes: Supabase "secure email change" (confirm *both* addresses) has never
+   been verified against this project; `/auth/v1/settings` does not expose the flag and the
+   Management API returned 401. The client code already tolerates either mode.
+6. **Full Nix companion** — future roadmap work covering pet persistence, feed/evolution,
    wardrobe, memory, and the final production asset. The visual asset still needs a Spline scene
    URL or rigged `.glb` with `idle/eat/happy/sleepy/evolve` states.
 
