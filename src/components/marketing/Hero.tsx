@@ -2,13 +2,19 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import {
+  BETA_CTA_CLOSED_LABEL,
   BETA_HERO_FEEDBACK_LEAD,
   BETA_HERO_FEEDBACK_TAIL,
   BETA_HERO_NOTICE,
   BETA_LABEL,
+  SIGNUPS_OPEN,
   FEEDBACK_MAILTO,
 } from "@/content/beta";
 import { MarketingNav } from "./MarketingNav";
+
+/** Shared by the live link and the disabled button so the two cannot drift. */
+const ctaClass =
+  "rounded-full px-6 py-3.5 text-[15px] font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.98] [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]";
 
 /**
  * Full-viewport hero. Left: display headline + subhead + CTAs. Right: a weekly
@@ -114,12 +120,32 @@ export function Hero() {
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-4">
-            <Link
-              href="/signup"
-              className="rounded-full px-6 py-3.5 text-[15px] font-medium transition-transform duration-[var(--dur-micro)] active:scale-[0.98] [background:rgb(var(--accent))] [color:rgb(var(--accent-contrast))] hover:[background:rgb(var(--accent-glow))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"
-            >
-              Start free
-            </Link>
+            {/* While sign-ups are closed this is a DISABLED BUTTON, not a
+                dimmed link. A link that looks unavailable but still navigates
+                would carry someone to a form that cannot succeed — the same
+                broken promise this project keeps removing elsewhere. Disabled
+                also drops it out of the tab order, which is correct: there is
+                nothing here to operate. "Log in" stays live, because invited
+                testers arrive through it. */}
+            {SIGNUPS_OPEN ? (
+              <Link href="/signup" className={ctaClass}>
+                Start free
+              </Link>
+            ) : (
+              // The caption is absolutely positioned so the wrapper measures
+              // exactly the button's height. In flow it made this column taller
+              // than the "Log in" link beside it, and the row's align-items
+              // centred the whole column instead of the button — knocking the
+              // two CTAs out of line with each other.
+              <div className="relative flex flex-col items-center">
+                <button type="button" disabled className={`${ctaClass} cursor-not-allowed opacity-40`}>
+                  Start free
+                </button>
+                <span className="absolute top-full mt-2 whitespace-nowrap font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]">
+                  {BETA_CTA_CLOSED_LABEL}
+                </span>
+              </div>
+            )}
             <Link
               href="/login"
               className="text-[15px] [color:rgb(var(--text-dim))] transition-colors duration-[var(--dur-micro)] [transition-timing-function:var(--ease)] hover:[color:rgb(var(--text))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"

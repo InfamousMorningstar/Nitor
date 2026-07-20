@@ -38,55 +38,120 @@
   opacity: 1;
 }
 
+/*
+ * BASE = a plain, boring switch that renders correctly everywhere.
+ *
+ * The gooey version below is opt-IN at >=1024px, not a thing we opt out of on
+ * mobile, and that direction is deliberate. The metaball depends on three
+ * features stacking — filter: blur()+contrast(), mix-blend-mode, and a
+ * box-shadow ring on an appearance:none input — and the ring is invisible ONLY
+ * because the blend mode erases it. iOS Safari drops the blend when the filter
+ * establishes its own isolation context, so the ring paints as an opaque black
+ * slab around a smeared white blob (reported from a real iPhone, 2026-07-20;
+ * Chromium at the same 390px viewport renders it fine, so a narrow viewport is
+ * not the trigger and emulation will not reproduce it).
+ *
+ * Anything that can fail this way belongs behind a floor we can actually test,
+ * and the plain switch is what everyone else gets. It is not a downgrade: it
+ * reads as intentional, matches the token palette, and animates on the same
+ * curve.
+ */
 .toggle {
-  --sw-primary: #0a0a0b;
-  --sw-secondary: #ffffff;
-  --sw-blend: darken;
   --time: 0.6s;
 
-  font-size: 7px; /* width:10em => 70px; height 35px */
   appearance: none;
   -webkit-appearance: none;
   position: relative;
   cursor: pointer;
-  width: 10em;
-  aspect-ratio: 2 / 1;
-  margin: 1em; /* room for the 1em box-shadow ring */
-  background: var(--sw-primary);
-  border-radius: 20em;
-  box-shadow: 0 0 0 1em var(--sw-secondary);
-  transform: translateX(0.5px);
-  transition: transform var(--time) cubic-bezier(0.75, 0, 0.75, 50);
-  filter: blur(0.66em) contrast(20);
-  mix-blend-mode: var(--sw-blend);
-  overflow: hidden;
+  flex: none;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgb(var(--hairline) / 0.18);
+  border: 1px solid rgb(var(--hairline) / 0.22);
+  transition: background var(--dur-micro) var(--ease);
 }
 
 .toggle::before {
   content: "";
   position: absolute;
-  width: 200%;
-  height: 100%;
-  transform: translate(-25%, -50%);
-  left: 50%;
   top: 50%;
-  background:
-    radial-gradient(closest-side circle at 12.5% 50%, var(--sw-secondary) 50%, #0000 0),
-    radial-gradient(closest-side circle at 87.5% 50%, var(--sw-secondary) 50%, #0000 0),
-    #f000;
-  transition: transform var(--time) cubic-bezier(0.75, 0, 0.75, 1.3);
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgb(var(--text-dim));
+  transform: translate(0, -50%);
+  transition:
+    transform var(--dur-base, 250ms) var(--ease),
+    background var(--dur-micro) var(--ease);
 }
 
 .toggle:checked {
-  transform: translateX(-0.5px);
+  background: rgb(var(--accent) / 0.22);
 }
 .toggle:checked::before {
-  transform: translate(-75%, -50%);
+  transform: translate(18px, -50%);
+  background: rgb(var(--accent));
 }
 
-/* Dark theme: white liquid on ink, blended with `lighten` so it stays visible. */
-.dark {
-  --sw-primary: #ededef;
-  --sw-secondary: #0a0a0b;
-  --sw-blend: lighten;
+/*
+ * Gooey metaball — desktop only, where it has been verified.
+ * Everything the plain switch set is restated rather than assumed, so the two
+ * modes never half-apply to each other.
+ */
+@media (min-width: 1024px) {
+  .toggle {
+    --sw-primary: #0a0a0b;
+    --sw-secondary: #ffffff;
+    --sw-blend: darken;
+
+    font-size: 7px; /* width:10em => 70px; height 35px */
+    width: 10em;
+    height: auto;
+    aspect-ratio: 2 / 1;
+    margin: 1em; /* room for the 1em box-shadow ring */
+    background: var(--sw-primary);
+    border: 0;
+    border-radius: 20em;
+    box-shadow: 0 0 0 1em var(--sw-secondary);
+    transform: translateX(0.5px);
+    transition: transform var(--time) cubic-bezier(0.75, 0, 0.75, 50);
+    filter: blur(0.66em) contrast(20);
+    mix-blend-mode: var(--sw-blend);
+    overflow: hidden;
+  }
+
+  .toggle::before {
+    width: 200%;
+    height: 100%;
+    top: 50%;
+    left: 50%;
+    border-radius: 0;
+    transform: translate(-25%, -50%);
+    background:
+      radial-gradient(closest-side circle at 12.5% 50%, var(--sw-secondary) 50%, #0000 0),
+      radial-gradient(closest-side circle at 87.5% 50%, var(--sw-secondary) 50%, #0000 0),
+      #f000;
+    transition: transform var(--time) cubic-bezier(0.75, 0, 0.75, 1.3);
+  }
+
+  .toggle:checked {
+    background: var(--sw-primary);
+    transform: translateX(-0.5px);
+  }
+  .toggle:checked::before {
+    transform: translate(-75%, -50%);
+    background:
+      radial-gradient(closest-side circle at 12.5% 50%, var(--sw-secondary) 50%, #0000 0),
+      radial-gradient(closest-side circle at 87.5% 50%, var(--sw-secondary) 50%, #0000 0),
+      #f000;
+  }
+
+  /* Dark theme: white liquid on ink, blended with `lighten` so it stays visible. */
+  .dark {
+    --sw-primary: #ededef;
+    --sw-secondary: #0a0a0b;
+    --sw-blend: lighten;
+  }
 }

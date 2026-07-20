@@ -2,7 +2,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/Wordmark";
-import { NixCreature } from "@/components/pet/NixCreature";
 import { QUOTES } from "@/domain/quotes";
 import { useSettingsStore } from "@/state/settingsStore";
 
@@ -11,8 +10,8 @@ const ROTATE_MS = 6000;
 /**
  * Shared logged-out shell for auth pages — outside AppFrame, no sidebar.
  * Left ~45%: matte form column with the wordmark. Right ~55% (lg+ only):
- * a flat panel with the sanctioned Nix glow and a rotating authentic
- * quote. Rotation respects both the OS-level prefers-reduced-motion query
+ * a flat panel carrying a rotating authentic quote. Rotation respects both
+ * the OS-level prefers-reduced-motion query
  * and the user's Settings → Reduce motion override.
  */
 export function AuthShell({ children }: { children: ReactNode }) {
@@ -47,9 +46,11 @@ export function AuthShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <div className="relative hidden w-[55%] flex-col items-center justify-center gap-10 border-l px-16 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))] lg:flex">
-        <NixCreature glow={0.7} state="idle" size={220} />
-
+      {/* Nix was removed here on 2026-07-20 for the same reason it left every
+          marketing surface (f897ce6): the companion is deferred, and showing it
+          on the two screens people meet first promises a feature that does not
+          exist. The quote carries this panel on its own. */}
+      <div className="relative hidden w-[55%] flex-col items-center justify-center border-l px-16 [border-color:rgb(var(--hairline)/0.08)] [background:rgb(var(--surface))] lg:flex">
         <div className="max-w-[440px] text-center" aria-live={reduceMotion ? undefined : "polite"}>
           <p className="text-2xl italic leading-relaxed [font-family:'Times_New_Roman',Times,serif] [color:rgb(var(--text))]">
             &ldquo;{quote.text}&rdquo;
