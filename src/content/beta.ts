@@ -36,7 +36,26 @@ export const BETA_HERO_FEEDBACK_TAIL =
  * live in MockHabitRepository.
  */
 export const BETA_SIGNUP_NOTICE =
-  "Closed beta: accounts are invite-only right now, so sign-up here won’t complete unless you’ve been invited. Free during beta, no card required. Your data is safe, but features may change and bugs are possible — you can export everything from Settings at any time.";
+  "Free during beta, no card required. Your data is safe, but features may change and bugs are possible — you can export everything from Settings at any time.";
+
+/**
+ * Short line directly under the signup submit button, above the longer notice.
+ *
+ * Deliberately separate from BETA_SIGNUP_NOTICE and deliberately terse: the
+ * fine print is skimmed, and this is the one fact a stranger needs BEFORE they
+ * fill the form. Without an invite the submit cannot succeed — built-in
+ * Supabase email only delivers to members of the Supabase organisation, so the
+ * confirmation link never arrives and the account is unusable.
+ *
+ * REMOVING THIS AT PUBLIC BETA: delete this constant and its <p> in
+ * src/app/(auth)/signup/page.tsx, flip BETA_LABEL back to "Public Beta", and
+ * restore the open-signup wording in BETA_HERO_NOTICE. Do it only once custom
+ * SMTP is live on a registered domain and a signup from a non-org address has
+ * actually been observed to complete — the copy is downstream of whether the
+ * email sends, not the other way round.
+ */
+export const BETA_SIGNUP_CLOSED_LINE =
+  "Sign-ups are closed for now — invite only.";
 
 /** Tooltip on the in-app Beta chip. */
 export const BETA_CHIP_TOOLTIP =

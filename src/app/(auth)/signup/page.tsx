@@ -8,7 +8,7 @@ import { Turnstile, type TurnstileHandle } from "@/components/auth/Turnstile";
 import { createClient } from "@/lib/supabase/client";
 import { eyebrow, fieldInput, fieldInputError, primaryButton, accentLink, emailError, passwordError } from "@/components/auth/formKit";
 import { signUpErrorMessage } from "@/components/auth/errorCopy";
-import { BETA_SIGNUP_NOTICE } from "@/content/beta";
+import { BETA_SIGNUP_CLOSED_LINE, BETA_SIGNUP_NOTICE } from "@/content/beta";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -146,6 +146,10 @@ export default function SignupPage() {
         <button type="submit" className={primaryButton} disabled={busy}>
           {busy ? "Creating…" : "Create account"}
         </button>
+
+        <p className="text-center text-xs font-medium [color:rgb(var(--text-dim))]">
+          {BETA_SIGNUP_CLOSED_LINE}
+        </p>
 
         <p className="text-center text-xs leading-relaxed [color:rgb(var(--text-mute))]">
           {BETA_SIGNUP_NOTICE}
