@@ -2,15 +2,33 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LoginPage from "@/app/(auth)/login/page";
 
-const { signInWithPassword, push, refresh } = vi.hoisted(() => ({
+const { signInWithPassword, getClaims, push, refresh, profile } = vi.hoisted(() => ({
   signInWithPassword: vi.fn(),
+  getClaims: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
+  profile: {
+    current: { data: null, error: null } as {
+      data: { onboarding_completed: unknown } | null;
+      error: { message: string } | null;
+    },
+  },
 }));
 
+// Shaped like the confirm-route suite's mock, because the page now runs the
+// REAL postAuthDestination against this client rather than a stubbed gate —
+// mocking the gate itself would re-admit the exact bug these tests exist to
+// catch, since the bug was never in the gate but in failing to call it.
 vi.mock("@/lib/supabase/client", () => ({
   createClient: vi.fn(() => ({
-    auth: { signInWithPassword },
+    auth: { signInWithPassword, getClaims },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => profile.current,
+        }),
+      }),
+    }),
   })),
 }));
 
@@ -55,6 +73,10 @@ beforeEach(() => {
   renderOpts = null;
   rawQuery = "";
   signInWithPassword.mockResolvedValue({ data: {}, error: null });
+  // Default: a fully onboarded user, so existing cases still assert the
+  // destination they were written against.
+  getClaims.mockResolvedValue({ data: { claims: { sub: "user-1" } }, error: null });
+  profile.current = { data: { onboarding_completed: true }, error: null };
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "test-site-key";
   window.turnstile = turnstile;
 });
@@ -265,5 +287,61 @@ describe("LoginPage", () => {
     expect(
       screen.queryByText("Email me a magic link instead"),
     ).not.toBeInTheDocument();
+  });
+
+  // Password login was the one authenticated entry point that pushed straight
+  // to `next` without consulting the onboarding gate, so a first-time user
+  // landed on an empty /today instead of onboarding. Found by driving the
+  // deployed site, not by any of these tests — which is why they exist now.
+  //
+  // It was also the COMMON path, not an edge case: while transactional email
+  // cannot reach non-org addresses, a password login is the only way a beta
+  // tester gets in at all.
+  describe("onboarding gate", () => {
+    it("sends a user with onboarding_completed false to /onboarding", async () => {
+      profile.current = { data: { onboarding_completed: false }, error: null };
+      render(<LoginPage />);
+      fillForm();
+      solveCaptcha();
+      submit();
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/onboarding"));
+    });
+
+    it("overrides an explicit ?next= for a user who has not onboarded", async () => {
+      rawQuery = "next=%2Fstats";
+      profile.current = { data: { onboarding_completed: false }, error: null };
+      render(<LoginPage />);
+      fillForm();
+      solveCaptcha();
+      submit();
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/onboarding"));
+      expect(push).not.toHaveBeenCalledWith("/stats");
+    });
+
+    it("honors ?next= once onboarding is complete", async () => {
+      rawQuery = "next=%2Fstats";
+      profile.current = { data: { onboarding_completed: true }, error: null };
+      render(<LoginPage />);
+      fillForm();
+      solveCaptcha();
+      submit();
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/stats"));
+    });
+
+    // Proof the gate is consulted at all. A missing profile row is exactly the
+    // state a freshly created user is in before the trigger's row is visible,
+    // and "not proven complete" must fail toward onboarding, never toward the app.
+    it("falls back to /onboarding when the profile row is missing", async () => {
+      profile.current = { data: null, error: null };
+      render(<LoginPage />);
+      fillForm();
+      solveCaptcha();
+      submit();
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/onboarding"));
+    });
   });
 });
