@@ -119,7 +119,7 @@ export function Hero() {
             {BETA_HERO_FEEDBACK_TAIL}
           </p>
 
-          <div className="mt-9 flex flex-wrap items-start gap-4">
+          <div className="mt-9 flex flex-wrap items-center gap-4">
             {/* While sign-ups are closed this is a DISABLED BUTTON, not a
                 dimmed link. A link that looks unavailable but still navigates
                 would carry someone to a form that cannot succeed — the same
@@ -132,11 +132,16 @@ export function Hero() {
                 Start free
               </Link>
             ) : (
-              <div className="flex flex-col items-center gap-1.5">
+              // The caption is absolutely positioned so the wrapper measures
+              // exactly the button's height. In flow it made this column taller
+              // than the "Log in" link beside it, and the row's align-items
+              // centred the whole column instead of the button — knocking the
+              // two CTAs out of line with each other.
+              <div className="relative flex flex-col items-center">
                 <button type="button" disabled className={`${ctaClass} cursor-not-allowed opacity-40`}>
                   Start free
                 </button>
-                <span className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]">
+                <span className="absolute top-full mt-2 whitespace-nowrap font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]">
                   {BETA_CTA_CLOSED_LABEL}
                 </span>
               </div>
