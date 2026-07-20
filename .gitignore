@@ -51,3 +51,9 @@ docs/*
 # Specs and implementation plans are versioned — they get reviewed like code.
 !docs/superpowers/
 .superpowers/
+
+# === local agent tooling (per-machine, not part of the app) ===
+AGENTS.md
+.agents/
+.claude/skills/
+skills-lock.json
