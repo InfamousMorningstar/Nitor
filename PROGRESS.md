@@ -4,14 +4,60 @@ Redesign of Nitor into a matte, editorial, premium habit tracker (the glassmorph
 rejected). Auth is live; authenticated habit and log persistence now runs through Supabase behind
 the frozen `HabitRepository` seam.
 
-**Branch:** `main` is the baseline. Active work is on `feat/phase2-identity` (pushed, not merged).
-**Status:** Phase 2 is underway. Identity/session is 16/19 tasks in; the Slice 2 persistence
-implementation is integrated behind RLS, with habit and log ownership enforced structurally
-(tenant-qualified keys plus a composite foreign key) rather than by application code. **416 tests
-pass across 46 files**; TypeScript is clean and the production build is clean at **25 static
-pages** (was 24 before `/api/account` was added) and still prints `ƒ Proxy (Middleware)`.
+**Branch:** `main` is the baseline and is deployed. `fix/login-onboarding-gate` holds 6 commits,
+pushed and awaiting merge.
+**Status:** **Nitor is live in CLOSED BETA at https://nitor-peach.vercel.app.** Phase 2 identity is
+16/19 tasks in; Slice 2 persistence runs behind RLS, with habit and log ownership enforced
+structurally (tenant-qualified keys plus a composite foreign key) rather than by application code.
+**424 tests pass across 47 files**; TypeScript is clean and the production build is clean at **25
+static pages** and still prints `ƒ Proxy (Middleware)`. Login was driven end to end in a real
+browser against the deployed site, not only under mocks.
 
 _Last updated: 2026-07-20._
+
+---
+
+## 🔴 BLOCKED ON A DOMAIN — the only thing between closed and public beta
+
+**These are human/dashboard steps. No amount of code moves them.** A domain is being registered
+(expected on or shortly after 2026-07-21); everything below unblocks in the same sweep.
+
+| # | Step | Where | Unblocks |
+|---|------|-------|----------|
+| 1 | Register the domain | registrar | everything below |
+| 2 | Point it at the Vercel project + verify DNS | Vercel → Domains | real URL instead of `nitor-peach.vercel.app` |
+| 3 | Configure **custom SMTP** (Resend/Postmark/SES) | Supabase → Auth → SMTP | **self sign-up, password reset, email change** |
+| 4 | Re-point Site URL + Redirect URLs to the domain | Supabase → Auth → URL Configuration | auth links that don't 404 |
+| 5 | Add the domain to the Turnstile widget | Cloudflare → Turnstile | CAPTCHA on login/signup/forgot |
+| 6 | Install the **email-change template** (below) | Supabase → Auth → Email Templates | roadmap item 5 |
+
+**Why SMTP is the hinge:** Supabase's built-in email service only delivers to members of the
+Supabase organisation, and rate-limits to a few messages an hour. An outside address that signs up
+today never receives its confirmation link, so its account is unusable. That single fact is why the
+product currently says *closed beta*, why `SIGNUPS_OPEN` is `false`, why the landing CTA is a
+disabled button, and why beta testers are created by script instead of signing up.
+
+### Then, and only then: the flip to public beta
+
+Do it in this order — the copy is downstream of whether email actually sends.
+
+1. **Observe a real signup complete** from an address that is NOT in the Supabase org. Watch the
+   confirmation arrive and the account work. This is the gate; everything else is bookkeeping.
+2. `SIGNUPS_OPEN = true` in `src/content/beta.ts` — one boolean, covers every self-sign-up surface.
+3. `BETA_LABEL` back to `"Public Beta"`; restore open-signup wording in `BETA_HERO_NOTICE`.
+4. Delete `BETA_SIGNUP_CLOSED_LINE` and its `<p>` in `src/app/(auth)/signup/page.tsx`.
+5. `tests/components/SignupsClosedCta.test.tsx` pins BOTH branches, so it keeps passing — but read
+   it, because it documents what "open" is supposed to look like.
+
+**Adding beta testers until then:**
+
+```bash
+npx tsx --env-file=.env.local scripts/invite-user.ts their@email.com
+```
+
+Creates the account pre-confirmed, verifies the profile row and that sign-in actually works, then
+prints a generated password. Share it over a channel you trust, not email. They can change it at
+Settings → Change password.
 
 ---
 
@@ -31,18 +77,12 @@ Re-run any time (the SQL file is written to be re-runnable):
 npx tsx --env-file=.env.local scripts/verify-rls.ts    # expect PASS, 27 checks
 ```
 
-**2. Task 2 — email & password change. BLOCKED on dashboard template.** The controls and route
-are implemented in the working tree, but the email flow is not complete until the Task 18 custom
-email-change template below is installed. Supabase's default `{{ .ConfirmationURL }}` verifies at
-Auth first and redirects to `emailRedirectTo` without `token_hash` or `type`; the current route
-correctly rejects that bare redirect rather than assuming success.
-- Settings previously showed a hardcoded `you@example.com` and two read-only placeholders.
-- `supabase.auth.updateUser({ email })` sends a confirmation whose custom link must arrive at
-  `src/app/auth/confirm/route.ts` with `token_hash` and `type=email_change`.
-- The `email_change` route uses the existing onboarding gate: completed users return to Settings;
-  incomplete users go to onboarding.
-- Password change reuses the shared strength helpers and requires the current password. Its
-  `signInWithPassword` verification re-issues the session and consumes sign-in rate limit.
+**2. ✅ SHIPPED — password change. Email change deferred to roadmap item 5.**
+Password change is live: it requires the current password before accepting a new one, and reuses
+the shared strength helpers. Its `signInWithPassword` verification re-issues the session and
+consumes sign-in rate limit — a known, accepted side effect, commented at the call site.
+The Settings email field is **read-only**, and `EmailChangeControl` is built, tested, and
+deliberately unimported. See roadmap item 5 for why and for the exact template needed.
 
 **3. Task 3 — complete the data export.** Not started. `exportJson()` / `exportCsv()` in
 `src/app/settings/page.tsx` already work. Remaining: fetch a fresh complete copy rather than
@@ -51,9 +91,15 @@ session-derived), verify archived habits are included, add a `schemaVersion` fie
 loudly instead of downloading a partial file that looks complete. Import stays out of scope —
 only make its copy honest if it overclaims.
 
-**4. Known unknown.** `/api/account` is proven under mocks only. It has **never been exercised
-against a real auth user**, so the cascade has not been observed end-to-end. Do that once the live
-database access in step 1 is working.
+**4. Known unknowns — things believed to work that have NOT been observed working.**
+- **`/api/account` deletion** is proven under mocks only; the cascade has never run against a real
+  auth user. `scripts/invite-user.ts` makes a throwaway account cheap, so this is now easy to close.
+- **The iOS theme-toggle fix.** The gooey metaball is opt-in at ≥1024px because iOS Safari painted
+  its `box-shadow` ring as an opaque slab in dark mode. Chromium renders the *broken* version
+  correctly at the same 390px viewport, so emulation cannot reproduce the bug and cannot confirm
+  the fix. **Verify on a real iPhone after deploy.**
+- **Whether a non-org address can complete signup.** Assumed impossible (built-in SMTP); never
+  actually attempted. Worth one attempt so the failure mode is known first-hand.
 
 ---
 
@@ -102,6 +148,24 @@ database access in step 1 is working.
 - **Public footer pages** — real `/features`, `/pricing`, `/changelog`, `/roadmap`, `/privacy`,
   `/terms`, and `/security` routes replace every placeholder footer link. Public copy uses a
   solo-developer or neutral product voice.
+
+### Closed-beta launch _(2026-07-20)_
+- **Deployed.** Live at `https://nitor-peach.vercel.app` (Vercel project `nitor`, 4 env vars on
+  Production + Preview). `main` is the production branch.
+- **Live database.** `supabase/habits.sql` applied; `verify-rls.ts` PASS 27/27 against the real
+  project, including cross-tenant isolation both directions and the anon role reading zero rows.
+- **Login proven end to end in a real browser** on the deployed site — Turnstile solving, session
+  established, `/today` reached. Not a mock.
+- **Password change** requiring the current password. Email field read-only (roadmap item 5).
+- **Fixed: password login skipped onboarding.** It pushed straight to `next` and never called
+  `postAuthDestination`, so first-time users landed on an empty `/today`. Found by driving the
+  deployed site — `tsc`, lint, and 416 tests all passed with the bug present.
+- **Fixed: theme toggle on iOS Safari.** The gooey metaball is now opt-in at ≥1024px; the base is a
+  plain switch. **Not verified on a real device — see Known unknowns.**
+- **Closed beta, honestly.** Nix removed from `/login` and `/signup`; `SIGNUPS_OPEN=false` gates
+  every self-sign-up surface; landing CTA is a disabled button labelled "Invite only" with no
+  `/signup` anchor left on the page; signup carries "Sign-ups are closed for now — invite only."
+- **`scripts/invite-user.ts`** — creates a pre-confirmed tester and proves the account can sign in.
 
 ### Streak-freeze, advanced habit management, fresh quotes _(2026-07-15)_
 - **Streak-freeze** — per-habit **earned** freeze (1 per 7 completed scheduled days, bank max 2),
@@ -214,9 +278,12 @@ to 0 rows after cleanup.
 
 ## ⬜ Left to do
 
-1. **Apply the pending CHECK-constraint migration and re-run the live verifier** — see RESUME HERE.
-2. **Complete the data export** — see RESUME HERE. (Password change shipped; **email change is
-   deferred to the roadmap** — see below.)
+0. **Domain → SMTP → public beta.** See the BLOCKED section at the top; it gates items 3 and 5 and
+   is the only thing standing between closed and public beta.
+1. **Complete the data export** — see RESUME HERE. Not blocked by anything; the best next coding
+   task.
+2. **Close the known unknowns** — `/api/account` against a real user, the iOS toggle on a real
+   phone, and one attempted signup from a non-org address. All cheap, none blocked.
 3. **Finish identity/runtime gates** — production SMTP after domain registration; live cross-user
    RLS, quote top-up, authenticated redirects, and full signed-in browser flow. (Google OAuth is
    *not* on this list: the live project reports `external.google: false` and its absence is
