@@ -12,6 +12,25 @@ export const FEEDBACK_MAILTO = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComp
 export const BETA_LABEL = "Closed Beta";
 
 /**
+ * THE flag for the closed -> public beta flip. Everything that offers self
+ * sign-up reads this, so opening up is one boolean rather than a hunt across
+ * surfaces that would inevitably leave one behind.
+ *
+ * Currently false because self sign-up genuinely cannot succeed: built-in
+ * Supabase email only delivers to members of the Supabase organisation, so an
+ * outside address never receives its confirmation link. This is a statement of
+ * fact, not a growth setting.
+ *
+ * Flip to true only AFTER custom SMTP is live on a registered domain and a
+ * signup from a non-org address has been observed to complete end to end.
+ * Watch it work before you advertise it.
+ */
+export const SIGNUPS_OPEN = false;
+
+/** Under the hero's primary CTA while SIGNUPS_OPEN is false. */
+export const BETA_CTA_CLOSED_LABEL = "Invite only";
+
+/**
  * Fine print under the hero subhead.
  *
  * Says invite-only plainly because that is currently enforced by circumstance,
