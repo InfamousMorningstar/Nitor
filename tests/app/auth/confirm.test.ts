@@ -128,6 +128,32 @@ describe("GET /auth/confirm", () => {
     });
   });
 
+  describe("email change", () => {
+    it("sends an onboarded user back to account settings", async () => {
+      const res = await get(
+        "/auth/confirm?token_hash=th_1&type=email_change&next=%2Fhabits",
+      );
+
+      expect(verifyOtp).toHaveBeenCalledWith({
+        type: "email_change",
+        token_hash: "th_1",
+      });
+      expect(res.headers.get("location")).toBe(
+        `${ORIGIN}/settings?email_change=confirmed`,
+      );
+      expect(getClaims).toHaveBeenCalled();
+    });
+
+    it("does not let an incomplete user bypass onboarding", async () => {
+      notOnboarded();
+      const res = await get(
+        "/auth/confirm?token_hash=th_1&type=email_change",
+      );
+
+      expect(res.headers.get("location")).toBe(`${ORIGIN}/onboarding`);
+    });
+  });
+
   describe("onboarding gate", () => {
     it("sends a first-time confirmed user to /onboarding", async () => {
       notOnboarded();

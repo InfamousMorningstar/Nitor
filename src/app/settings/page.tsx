@@ -5,6 +5,10 @@ import { useTheme } from "@/state/theme";
 import { useHabits } from "@/state/useHabits";
 import { useSettingsStore, CURATED_ACCENTS } from "@/state/settingsStore";
 import { logsToCsv } from "@/domain/csv";
+import { useSession } from "@/state/SessionProvider";
+// EmailChangeControl is deliberately not imported — see the "email" row below.
+// It stays built and tested, ready for the day the custom template exists.
+import { PasswordChangeControl } from "@/components/settings/AccountSecurityControls";
 
 const eyebrow =
   "font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.08em] [color:rgb(var(--text-mute))]";
@@ -144,11 +148,10 @@ export default function SettingsPage() {
   const { theme, followsSystem, setTheme, setSystemTheme } = useTheme();
   const { habits, logs } = useHabits();
   const settings = useSettingsStore();
+  const { user } = useSession();
   const [search, setSearch] = useState("");
 
-  // Account (stubbed — no backend yet)
   const [displayName, setDisplayName] = useState("");
-  const [pwStub, setPwStub] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   // Deletion is irreversible and can fail, so the UI tracks the attempt rather
   // than a boolean "done". Navigating on anything other than a confirmed
@@ -217,35 +220,32 @@ export default function SettingsPage() {
         {
           id: "email",
           title: "Email",
-          description: "Read-only for now — changing your email isn't available yet.",
-          control: (
+          // Read-only on purpose. The change-email flow is implemented but has no
+          // route to it: Supabase's default template verifies at Auth and redirects
+          // without token_hash/type, so a SUCCESSFUL change would land the user on
+          // /login?error=invalid_link. Offering the control would be offering a lie.
+          // Unblocks with the custom template in PROGRESS.md (needs the domain).
+          description: "The address you sign in with. Changing it isn't available yet.",
+          control: user?.email ? (
             <input
-              value="you@example.com"
+              value={user.email}
               readOnly
               disabled
+              aria-label="Email address"
               className={`${fieldInput} w-44 opacity-60`}
             />
+          ) : (
+            <span className="text-[12px] [color:rgb(var(--text-mute))]">Loading account…</span>
           ),
         },
         {
           id: "change-password",
           title: "Change password",
-          description: "Update the password on your account.",
-          control: (
-            <div className="flex flex-col items-end gap-1">
-              <button
-                type="button"
-                onClick={() => setPwStub(true)}
-                className={`${pillButton} ${pillInactive}`}
-              >
-                Change password
-              </button>
-              {pwStub && (
-                <span className="text-[11px] [color:rgb(var(--text-mute))]">
-                  Changing your password here isn&rsquo;t available yet.
-                </span>
-              )}
-            </div>
+          description: "Confirm your current password before choosing a new one.",
+          control: user?.email ? (
+            <PasswordChangeControl currentEmail={user.email} currentUserId={user.id} />
+          ) : (
+            <span className="text-[12px] [color:rgb(var(--text-mute))]">Loading account…</span>
           ),
         },
         {
